@@ -983,9 +983,9 @@ tbody tr:hover {
   height: 32px;
   padding: 0;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: #ffffff;
-  color: var(--muted);
+  border: 1px solid var(--ce-blue-border);
+  background: var(--ce-blue-soft);
+  color: var(--ce-blue);
   cursor: pointer;
   transition: all 0.18s var(--ease-inertial);
 }
@@ -1005,10 +1005,16 @@ tbody tr:hover {
   box-shadow: 0 2px 6px rgba(29, 78, 216, 0.12);
 }
 
-.row-action.danger:hover {
+.row-action.danger {
   background: var(--danger-soft);
   color: var(--danger);
   border-color: #fecaca;
+}
+
+.row-action.danger:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
   transform: scale(1.06);
   box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
 }
