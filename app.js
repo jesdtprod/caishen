@@ -160,8 +160,9 @@ function bindForms() {
 }
 
 function submitLogin(event) {
-  event.preventDefault();
-  const form = Object.fromEntries(new FormData($("#loginForm")));
+  if (event) event.preventDefault();
+  setLoginStatus('Checking login...');
+  const form = Object.fromEntries(new FormData($('#loginForm')));
   apiCall('login', form)
     .then((result) => {
       state.user = result.user;
@@ -170,11 +171,15 @@ function submitLogin(event) {
       $('#dashboardView').classList.remove('hidden');
       $('#roleLabel').textContent = result.user.role;
       $('#userChip').textContent = `${result.user.name} - ${result.user.role}`;
-      $$('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
+      $('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
       render();
+      setLoginStatus('Login successful.');
       showToast('Login successful.');
     })
-    .catch((error) => showToast(error.message || 'Login failed.'));
+    .catch((error) => {
+      setLoginStatus(error.message || 'Login failed.');
+      showToast(error.message || 'Login failed.');
+    });
 }
 
 function saveForm(event, action, extra = {}) {
@@ -309,12 +314,19 @@ function setToday() {
   });
 }
 
+function setLoginStatus(message) {
+  const target = $('#loginStatus');
+  if (target) target.textContent = message;
+}
+
 function showToast(message) {
   const toast = $('#toast');
   toast.textContent = message;
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
+
+
 
 
 
