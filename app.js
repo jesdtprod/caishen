@@ -26,20 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let activeRequestsCount = 0;
 
-function showOverlay(message = 'Processing request...') {
-  activeRequestsCount++;
-  const overlay = $('#globalLoadingOverlay');
-  const text = $('#globalLoadingText');
-  if (text && message) text.textContent = message;
-  if (overlay) overlay.classList.remove('hidden');
+function showOverlay() {
+  // Disabled: skeleton loading and modal button spinners provide interactive feedback
 }
 
 function hideOverlay() {
-  activeRequestsCount = Math.max(0, activeRequestsCount - 1);
-  if (activeRequestsCount === 0) {
-    const overlay = $('#globalLoadingOverlay');
-    if (overlay) overlay.classList.add('hidden');
-  }
+  // Disabled: skeleton loading and modal button spinners provide interactive feedback
 }
 
 function getActionMessage(action) {
@@ -49,7 +41,11 @@ function getActionMessage(action) {
     updateProduct: 'Updating product specifications...',
     deleteProduct: 'Deleting product record...',
     saveStockIn: 'Saving inbound stock receipt...',
+    updateStockIn: 'Updating stock-in record...',
+    cancelStockIn: 'Cancelling inbound stock receipt...',
     saveSale: 'Recording sales transaction...',
+    updateSale: 'Updating sales record...',
+    cancelSale: 'Cancelling sales order...',
     saveUser: 'Creating user credentials...',
     updateUser: 'Updating user credentials...',
     deleteUser: 'Deleting user account...',
@@ -130,14 +126,33 @@ function mockCall(action, payload) {
   }
   if (action === 'updateProduct') updateLocal(localStore.products, payload);
   if (action === 'deleteProduct') removeLocal(localStore.products, payload.id);
-  if (action === 'saveStockIn') localStore.stockIn.push(withId('STK', payload));
+  if (action === 'saveStockIn') localStore.stockIn.unshift(withId('STK', Object.assign({ status: 'Active' }, payload)));
+  if (action === 'updateStockIn') updateLocal(localStore.stockIn, payload);
+  if (action === 'cancelStockIn') {
+    const item = localStore.stockIn.find((r) => String(r.id) === String(payload.id));
+    if (item) item.status = 'Cancelled';
+  }
   if (action === 'saveSale') {
     const product = localStore.products.find((productItem) => productItem.id === payload.productId);
     const price = Number(payload.price || (product ? product.price : 0) || 0);
-    localStore.sales.push(withId('SAL', Object.assign({}, payload, {
+    localStore.sales.unshift(withId('SAL', Object.assign({ status: 'Completed' }, payload, {
       price,
       total: Number(payload.quantity || 0) * price,
     })));
+  }
+  if (action === 'updateSale') {
+    const product = localStore.products.find((productItem) => productItem.id === payload.productId);
+    const price = Number(payload.price || (product ? product.price : 0) || 0);
+    const quantity = Number(payload.quantity || 0);
+    updateLocal(localStore.sales, Object.assign({}, payload, {
+      price,
+      quantity,
+      total: price * quantity,
+    }));
+  }
+  if (action === 'cancelSale') {
+    const item = localStore.sales.find((r) => String(r.id) === String(payload.id));
+    if (item) item.status = 'Cancelled';
   }
   if (action === 'saveUser') localStore.users.push(withId('USR', payload));
   if (action === 'updateUser') updateLocal(localStore.users, payload);
@@ -183,7 +198,9 @@ function refreshLocalInventory() {
 }
 
 function sum(rows, productId) {
-  return rows.filter((row) => row.productId === productId).reduce((total, row) => total + Number(row.quantity || 0), 0);
+  return rows
+    .filter((row) => row.productId === productId && row.status !== 'Cancelled')
+    .reduce((total, row) => total + Number(row.quantity || 0), 0);
 }
 
 function openModal(modalId) {
@@ -450,8 +467,28 @@ function closeMobileSidebar() {
   if (backdrop) backdrop.classList.remove('active');
 }
 
+function setupPasswordToggle() {
+  const toggleBtn = $('#togglePasswordBtn');
+  const passwordInput = $('#loginPassword');
+  if (!toggleBtn || !passwordInput) return;
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    const isPassword = passwordInput.getAttribute('type') === 'password';
+    passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+    const eyeShow = toggleBtn.querySelector('.eye-show');
+    const eyeHide = toggleBtn.querySelector('.eye-hide');
+    if (eyeShow && eyeHide) {
+      eyeShow.classList.toggle('hidden', isPassword);
+      eyeHide.classList.toggle('hidden', !isPassword);
+    }
+    toggleBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+  });
+}
+
 function bindForms() {
   $('#loginForm').addEventListener('submit', submitLogin);
+  setupPasswordToggle();
   $('#productForm').addEventListener('submit', (event) => saveForm(event, 'saveProduct'));
   $('#stockForm').addEventListener('submit', (event) => saveForm(event, 'saveStockIn'));
   $('#salesForm').addEventListener('submit', (event) => saveForm(event, 'saveSale'));
@@ -621,7 +658,7 @@ function handleActions(event) {
 
   const type = button.dataset.type;
   const id = button.dataset.id;
-  const rows = type === 'product' ? state.data.products : state.data.users;
+  const rows = type === 'product' ? state.data.products : type === 'stock' ? state.data.stockIn : type === 'sale' ? state.data.sales : state.data.users;
   const item = rows.find((record) => String(record.id) === String(id));
   if (!item) return;
   if (button.dataset.action === 'edit') return editRecord(type, item);
@@ -631,7 +668,7 @@ function handleActions(event) {
 let pendingDelete = null;
 
 function promptDelete(type, id) {
-  const rows = type === 'product' ? state.data.products : state.data.users;
+  const rows = type === 'product' ? state.data.products : type === 'stock' ? state.data.stockIn : type === 'sale' ? state.data.sales : state.data.users;
   const item = rows.find((record) => String(record.id) === String(id));
   if (!item) return;
 
@@ -639,10 +676,24 @@ function promptDelete(type, id) {
 
   const title = $('#confirmItemTitle');
   const desc = $('#confirmItemDesc');
-  const itemName = item.name || item.username || 'this record';
+  const btnText = $('#confirmDeleteBtn .btn-text');
 
-  if (title) title.textContent = `Delete ${type === 'product' ? 'Product' : 'User'}?`;
-  if (desc) desc.innerHTML = `Are you sure you want to delete <strong>${escapeHtml(itemName)}</strong>?<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">This record will be safely archived (soft delete).</span>`;
+  if (type === 'stock') {
+    const prodName = productName(item.productId);
+    if (title) title.textContent = 'Cancel Stock-In?';
+    if (desc) desc.innerHTML = `Are you sure you want to cancel inbound receipt of <strong>${escapeHtml(prodName)}</strong> (+${item.quantity})?<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">This stock-in will be marked as Cancelled and will NOT be included in inventory balances.</span>`;
+    if (btnText) btnText.textContent = 'Yes, Cancel';
+  } else if (type === 'sale') {
+    const prodName = productName(item.productId);
+    if (title) title.textContent = 'Cancel Sale?';
+    if (desc) desc.innerHTML = `Are you sure you want to cancel the sale order of <strong>${escapeHtml(prodName)}</strong> (₱${money(item.total)})?<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">This sale will be marked as Cancelled and inventory will be restored.</span>`;
+    if (btnText) btnText.textContent = 'Yes, Cancel';
+  } else {
+    const itemName = item.name || item.username || 'this record';
+    if (title) title.textContent = `Delete ${type === 'product' ? 'Product' : 'User'}?`;
+    if (desc) desc.innerHTML = `Are you sure you want to delete <strong>${escapeHtml(itemName)}</strong>?<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">This record will be safely archived (soft delete).</span>`;
+    if (btnText) btnText.textContent = 'Yes, Delete';
+  }
 
   openModal('confirmModal');
 }
@@ -653,28 +704,44 @@ function executeConfirmedDelete() {
   const confirmBtn = $('#confirmDeleteBtn');
   setButtonLoading(confirmBtn, true);
 
-  const action = type === 'product' ? 'deleteProduct' : 'deleteUser';
-  apiCall(action, { id, actorRole: state.user.role, actorId: state.user.id })
+  const action = type === 'product' ? 'deleteProduct' : type === 'stock' ? 'cancelStockIn' : type === 'sale' ? 'cancelSale' : 'deleteUser';
+  apiCall(action, { id, actorRole: state.user ? state.user.role : 'Admin', actorId: state.user ? state.user.id : '' })
     .then((data) => {
       setButtonLoading(confirmBtn, false);
       state.data = data;
       closeModal('confirmModal');
       pendingDelete = null;
       render();
-      showToast(`${type === 'product' ? 'Product' : 'User'} archived successfully.`);
+      showToast(type === 'stock' ? 'Stock-In cancelled successfully.' : type === 'sale' ? 'Sale cancelled successfully.' : `${type === 'product' ? 'Product' : 'User'} archived successfully.`);
     })
     .catch((error) => {
       setButtonLoading(confirmBtn, false);
-      showToast(error.message || 'Unable to delete.', 'error');
+      showToast(error.message || 'Unable to complete action.', 'error');
     });
 }
 
 function editRecord(type, item) {
-  const form = type === 'product' ? $('#productForm') : $('#userForm');
+  let form;
+  if (type === 'product') form = $('#productForm');
+  else if (type === 'user') form = $('#userForm');
+  else if (type === 'stock') form = $('#stockForm');
+  else if (type === 'sale') form = $('#salesForm');
+
+  if (!form) return;
+
   Object.keys(item).forEach((key) => {
-    if (form.elements[key] && key !== 'password') form.elements[key].value = item[key];
+    if (form.elements[key] && key !== 'password') {
+      if (key === 'date' && item[key]) {
+        const dStr = String(item[key]);
+        const m = dStr.match(/^(\d{4}-\d{2}-\d{2})/);
+        form.elements[key].value = m ? m[1] : dStr.slice(0, 10);
+      } else {
+        form.elements[key].value = item[key];
+      }
+    }
   });
   syncAllCustomSelectsInForm(form);
+
   if (type === 'product') {
     const btnText = $('#productSubmit .btn-text');
     if (btnText) btnText.textContent = 'Update Product';
@@ -687,7 +754,21 @@ function editRecord(type, item) {
     else $('#userSubmit').textContent = 'Update User';
     openModal('userModal');
   }
-  showView(type === 'product' ? 'products' : 'users');
+  if (type === 'stock') {
+    const btnText = $('#stockSubmit .btn-text');
+    if (btnText) btnText.textContent = 'Update Stock-In';
+    else if ($('#stockSubmit')) $('#stockSubmit').textContent = 'Update Stock-In';
+    if ($('#stockModalTitle')) $('#stockModalTitle').textContent = 'Edit Stock-In Entry';
+    openModal('stockModal');
+  }
+  if (type === 'sale') {
+    const btnText = $('#salesSubmit .btn-text');
+    if (btnText) btnText.textContent = 'Update Sale';
+    else if ($('#salesSubmit')) $('#salesSubmit').textContent = 'Update Sale';
+    if ($('#salesModalTitle')) $('#salesModalTitle').textContent = 'Edit Sales Entry';
+    openModal('salesModal');
+  }
+  showView(type === 'product' ? 'products' : type === 'stock' ? 'stock' : type === 'sale' ? 'sales' : 'users');
 }
 
 function resetForm(formId) {
@@ -702,6 +783,14 @@ function resetForm(formId) {
   const userBtnText = $('#userSubmit .btn-text');
   if (userBtnText) userBtnText.textContent = 'Create User';
   else if ($('#userSubmit')) $('#userSubmit').textContent = 'Create User';
+  const stockBtnText = $('#stockSubmit .btn-text');
+  if (stockBtnText) stockBtnText.textContent = 'Save Stock-In';
+  else if ($('#stockSubmit')) $('#stockSubmit').textContent = 'Save Stock-In';
+  if ($('#stockModalTitle')) $('#stockModalTitle').textContent = 'Stock-In Entry';
+  const salesBtnText = $('#salesSubmit .btn-text');
+  if (salesBtnText) salesBtnText.textContent = 'Save Sale';
+  else if ($('#salesSubmit')) $('#salesSubmit').textContent = 'Save Sale';
+  if ($('#salesModalTitle')) $('#salesModalTitle').textContent = 'Sales Entry';
   setToday();
   syncAllCustomSelectsInForm(form);
 }
@@ -729,7 +818,7 @@ function render() {
   const inventory = data.inventory || [];
   $('#statProducts').textContent = data.products.length;
   $('#statStock').textContent = inventory.reduce((total, item) => total + Number(item.currentStock || 0), 0);
-  $('#statSales').textContent = money(data.sales.reduce((total, item) => total + Number(item.total || 0), 0));
+  $('#statSales').textContent = money(data.sales.filter((r) => r.status !== 'Cancelled').reduce((total, item) => total + Number(item.total || 0), 0));
   $('#statLow').textContent = inventory.filter((item) => item.stockStatus === 'Low Stock').length;
 
   fillSelects(data.products);
@@ -738,10 +827,28 @@ function render() {
   fillRows('#productRows', data.products, (item) => [item.sku, item.name, item.category, money(item.price), badge(item.status), rowActions('product', item.id)]);
   fillProductCards('#productCards', data.products);
 
-  fillRows('#stockRows', data.stockIn, (item) => [item.date, productName(item.productId), item.quantity, item.supplier || '-', item.encodedBy || '-']);
+  fillRows('#stockRows', data.stockIn, (item) => [
+    formatDateTime(item.date, item.createdAt),
+    productName(item.productId),
+    `${item.quantity} ${productUnit(item.productId)}`,
+    item.supplier || '-',
+    item.reference || '-',
+    item.encodedBy || '-',
+    badge(item.status || 'Active'),
+    rowActions('stock', item.id, item),
+  ]);
   fillStockCards('#stockCards', data.stockIn);
 
-  fillRows('#salesRows', data.sales, (item) => [item.date, productName(item.productId), item.quantity, money(item.total), item.encodedBy || '-']);
+  fillRows('#salesRows', data.sales, (item) => [
+    formatDateTime(item.date, item.createdAt),
+    productName(item.productId),
+    item.customer || 'Walk-in',
+    `${item.quantity} ${productUnit(item.productId)}`,
+    `₱${money(item.total)}`,
+    item.encodedBy || '-',
+    badge(item.status || 'Completed'),
+    rowActions('sale', item.id, item),
+  ]);
   fillSalesCards('#salesCards', data.sales);
 
   fillRows('#userRows', data.users, (item) => [item.name, item.username, item.role, badge(item.status), rowActions('user', item.id)]);
@@ -759,7 +866,7 @@ function fillProductCards(selector, products) {
   const target = $(selector);
   if (!target) return;
   if (!products.length) {
-    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No products found.</div>';
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted); grid-column: 1 / -1;">No products found.</div>';
     return;
   }
   target.innerHTML = products.map((item) => `
@@ -796,7 +903,7 @@ function fillUserCards(selector, users) {
   const target = $(selector);
   if (!target) return;
   if (!users.length) {
-    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No users found.</div>';
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted); grid-column: 1 / -1;">No users found.</div>';
     return;
   }
   target.innerHTML = users.map((item) => `
@@ -810,10 +917,14 @@ function fillUserCards(selector, users) {
       </div>
       <div class="data-card-body">
         <h4 class="data-card-title">${escapeHtml(item.name)}</h4>
-        <div class="data-card-grid" style="grid-template-columns: 1fr;">
+        <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
           <div class="data-card-field">
             <span class="field-label">Username</span>
             <span class="field-val">${escapeHtml(item.username)}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Role</span>
+            <span class="field-val">${escapeHtml(item.role)}</span>
           </div>
         </div>
       </div>
@@ -825,89 +936,140 @@ function fillStockCards(selector, list) {
   const target = $(selector);
   if (!target) return;
   if (!list.length) {
-    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No stock-in records found.</div>';
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted); grid-column: 1 / -1;">No stock-in records found.</div>';
     return;
   }
-  target.innerHTML = list.map((item) => `
-    <div class="data-card">
-      <div class="data-card-header">
-        <span class="sku-tag">${escapeHtml(item.date)}</span>
-        <span class="badge" style="background: rgba(34,197,94,0.12); color: #15803d; font-weight:700;">+${item.quantity} Inbound</span>
-      </div>
-      <div class="data-card-body">
-        <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
-        <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
-          <div class="data-card-field">
-            <span class="field-label">Supplier</span>
-            <span class="field-val">${escapeHtml(item.supplier || '-')}</span>
+  target.innerHTML = list.map((item) => {
+    const unit = productUnit(item.productId);
+    const sku = productSku(item.productId);
+    const isCancelled = item.status === 'Cancelled';
+    return `
+      <div class="data-card ${isCancelled ? 'is-cancelled' : ''}">
+        <div class="data-card-header">
+          <div class="data-card-tags">
+            ${sku ? `<span class="sku-tag">${escapeHtml(sku)}</span>` : ''}
           </div>
-          <div class="data-card-field">
-            <span class="field-label">Encoded By</span>
-            <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+          ${rowActions('stock', item.id, item)}
+        </div>
+        <div class="data-card-body">
+          <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
+          <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="data-card-field">
+              <span class="field-label">Supplier</span>
+              <span class="field-val">${escapeHtml(item.supplier || '-')}</span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Reference / PO #</span>
+              <span class="field-val">${escapeHtml(item.reference || '-')}</span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Quantity Received</span>
+              <span class="field-val" style="font-weight: 700; ${isCancelled ? 'text-decoration: line-through; color: var(--muted);' : 'color: #15803d;'}">
+                +${item.quantity} ${escapeHtml(unit)}
+              </span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Status</span>
+              <span class="field-val">${badge(item.status || 'Active')}</span>
+            </div>
+            <div class="data-card-field" style="border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 2px;">
+              <span class="field-label">Encoded By</span>
+              <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+            </div>
+            <div class="data-card-field" style="border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 2px;">
+              <span class="field-label">Date &amp; Time</span>
+              <span class="field-val" style="font-size: 11.5px; font-weight: 600;">${escapeHtml(formatDateTime(item.date, item.createdAt))}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function fillSalesCards(selector, list) {
   const target = $(selector);
   if (!target) return;
   if (!list.length) {
-    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No sales records found.</div>';
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted); grid-column: 1 / -1;">No sales records found.</div>';
     return;
   }
-  target.innerHTML = list.map((item) => `
-    <div class="data-card">
-      <div class="data-card-header">
-        <span class="sku-tag">${escapeHtml(item.date)}</span>
-        <span class="field-val price" style="font-size: 15px;">₱${money(item.total)}</span>
-      </div>
-      <div class="data-card-body">
-        <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
-        <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
-          <div class="data-card-field">
-            <span class="field-label">Quantity Sold</span>
-            <span class="field-val">${item.quantity}</span>
+  target.innerHTML = list.map((item) => {
+    const unit = productUnit(item.productId);
+    const sku = productSku(item.productId);
+    const unitPrice = Number(item.price || (item.quantity ? Number(item.total || 0) / Number(item.quantity || 1) : 0));
+    const isCancelled = item.status === 'Cancelled';
+    return `
+      <div class="data-card ${isCancelled ? 'is-cancelled' : ''}">
+        <div class="data-card-header">
+          <div class="data-card-tags">
+            ${sku ? `<span class="sku-tag">${escapeHtml(sku)}</span>` : ''}
           </div>
-          <div class="data-card-field">
-            <span class="field-label">Encoded By</span>
-            <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+          ${rowActions('sale', item.id, item)}
+        </div>
+        <div class="data-card-body">
+          <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
+          <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="data-card-field">
+              <span class="field-label">Customer</span>
+              <span class="field-val">${escapeHtml(item.customer || 'Walk-in Customer')}</span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Unit Price</span>
+              <span class="field-val">₱${money(unitPrice)}</span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Quantity Sold</span>
+              <span class="field-val" style="${isCancelled ? 'text-decoration: line-through;' : ''}">${item.quantity} ${escapeHtml(unit)}</span>
+            </div>
+            <div class="data-card-field">
+              <span class="field-label">Total Amount</span>
+              <span class="field-val price" style="${isCancelled ? 'text-decoration: line-through; color: var(--muted);' : ''}">₱${money(item.total)}</span>
+            </div>
+            <div class="data-card-field" style="border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 2px;">
+              <span class="field-label">Encoded By</span>
+              <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+            </div>
+            <div class="data-card-field" style="border-top: 1px dashed var(--line); padding-top: 6px; margin-top: 2px;">
+              <span class="field-label">Date &amp; Time</span>
+              <span class="field-val" style="font-size: 11.5px; font-weight: 600;">${escapeHtml(formatDateTime(item.date, item.createdAt))}</span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function fillInventoryCards(selector, list) {
   const target = $(selector);
   if (!target) return;
   if (!list.length) {
-    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No inventory records found.</div>';
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted); grid-column: 1 / -1;">No inventory records found.</div>';
     return;
   }
   target.innerHTML = list.map((item) => `
     <div class="data-card">
       <div class="data-card-header">
-        <span class="sku-tag">${escapeHtml(item.sku)}</span>
-        ${badge(item.stockStatus)}
+        <div class="data-card-tags">
+          <span class="sku-tag">${escapeHtml(item.sku)}</span>
+          ${badge(item.stockStatus)}
+        </div>
       </div>
       <div class="data-card-body">
         <h4 class="data-card-title">${escapeHtml(item.name)}</h4>
         <div class="data-card-grid">
           <div class="data-card-field">
             <span class="field-label">Inbound</span>
-            <span class="field-val">${item.stockIn || 0}</span>
+            <span class="field-val">${item.stockIn || 0} ${escapeHtml(item.unit || '')}</span>
           </div>
           <div class="data-card-field">
             <span class="field-label">Sold</span>
-            <span class="field-val">${item.sold || 0}</span>
+            <span class="field-val">${item.sold || 0} ${escapeHtml(item.unit || '')}</span>
           </div>
           <div class="data-card-field">
             <span class="field-label">Current</span>
-            <span class="field-val" style="color: var(--ce-blue); font-weight: 700;">${item.currentStock || 0}</span>
+            <span class="field-val" style="color: var(--ce-blue); font-weight: 700;">${item.currentStock || 0} ${escapeHtml(item.unit || '')}</span>
           </div>
         </div>
       </div>
@@ -934,21 +1096,47 @@ function fillRows(selector, rows, mapper) {
     : '<tr><td colspan="8" style="text-align:center; padding: 24px; color: var(--muted);">No records found.</td></tr>';
 }
 
+function productItem(productId) {
+  return state.data.products.find((item) => item.id === productId);
+}
+
 function productName(productId) {
-  const product = state.data.products.find((item) => item.id === productId);
+  const product = productItem(productId);
   return product ? product.name : '-';
+}
+
+function productUnit(productId) {
+  const product = productItem(productId);
+  return product && product.unit ? product.unit : '';
+}
+
+function productSku(productId) {
+  const product = productItem(productId);
+  return product && product.sku ? product.sku : '';
 }
 
 function badge(text) {
   return `<span class="badge ${text === 'Low Stock' ? 'low' : ''}">${escapeHtml(text || '-')}</span>`;
 }
 
-function rowActions(type, id) {
-  return `<div class="kebab-wrap">
-    <button class="kebab-btn" data-kebab-toggle="${escapeHtml(id)}" type="button" aria-label="More actions" title="Actions">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
-    </button>
-    <div class="kebab-menu">
+function rowActions(type, id, item = {}) {
+  const isCancelled = item && item.status === 'Cancelled';
+  let actionsHtml = '';
+
+  if (type === 'stock' || type === 'sale') {
+    actionsHtml = `
+      <button class="kebab-item" data-action="edit" data-type="${type}" data-id="${escapeHtml(id)}" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        <span>Edit</span>
+      </button>
+      ${!isCancelled ? `
+      <button class="kebab-item danger" data-action="delete" data-type="${type}" data-id="${escapeHtml(id)}" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+        <span>Cancel</span>
+      </button>` : ''}
+    `;
+  } else {
+    actionsHtml = `
       <button class="kebab-item" data-action="edit" data-type="${type}" data-id="${escapeHtml(id)}" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         <span>Edit</span>
@@ -957,12 +1145,88 @@ function rowActions(type, id) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
         <span>Delete</span>
       </button>
+    `;
+  }
+
+  return `<div class="kebab-wrap">
+    <button class="kebab-btn" data-kebab-toggle="${escapeHtml(id)}" type="button" aria-label="More actions" title="Actions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+    </button>
+    <div class="kebab-menu">
+      ${actionsHtml}
     </div>
   </div>`;
 }
 
 function money(value) {
   return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDateTime(value, fallback) {
+  if (!value && !fallback) return '-';
+
+  function parseDate(input) {
+    if (!input) return null;
+    if (input instanceof Date && !isNaN(input.getTime())) return input;
+    const str = String(input).trim();
+    if (!str) return null;
+
+    // Check if already in target format 'YYYY-MM-DD hh:mm:ss AM/PM'
+    if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+(AM|PM)$/i.test(str)) {
+      return str;
+    }
+
+    // Check for format 'YYYY-MM-DD HH:mm:ss' or 'YYYY-MM-DDTHH:mm:ss' without timezone (treat as local)
+    const localMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?$/);
+    if (localMatch) {
+      const [, y, m, d, hh, mm, ss] = localMatch;
+      return new Date(Number(y), Number(m) - 1, Number(d), Number(hh), Number(mm), Number(ss));
+    }
+
+    const parsed = new Date(str);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const d = parseDate(value);
+  const fb = parseDate(fallback);
+
+  if (typeof d === 'string') return d;
+
+  let activeDate = d;
+  if (!activeDate && fb) {
+    if (typeof fb === 'string') return fb;
+    activeDate = fb;
+  }
+
+  if (!activeDate) return String(value || fallback || '-');
+
+  let year = activeDate.getFullYear();
+  let month = activeDate.getMonth() + 1;
+  let day = activeDate.getDate();
+  let hours24 = activeDate.getHours();
+  let minutes = activeDate.getMinutes();
+  let seconds = activeDate.getSeconds();
+
+  // If activeDate has midnight (00:00:00) and fallback has actual time, borrow time from fallback
+  if (fb && typeof fb !== 'string' && hours24 === 0 && minutes === 0 && seconds === 0) {
+    if (fb.getHours() !== 0 || fb.getMinutes() !== 0 || fb.getSeconds() !== 0) {
+      hours24 = fb.getHours();
+      minutes = fb.getMinutes();
+      seconds = fb.getSeconds();
+    }
+  }
+
+  const yyyy = String(year);
+  const mm = String(month).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  const period = hours24 >= 12 ? 'PM' : 'AM';
+  let hours12 = hours24 % 12;
+  if (hours12 === 0) hours12 = 12;
+  const hh = String(hours12).padStart(2, '0');
+  const min = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss} ${period}`;
 }
 
 function escapeHtml(value) {

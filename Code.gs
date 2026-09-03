@@ -9,8 +9,8 @@ const SHEETS = {
 const HEADERS = {
   Users: ['id', 'name', 'username', 'password', 'role', 'status', 'createdAt'],
   Products: ['id', 'sku', 'name', 'category', 'unit', 'price', 'beginningStock', 'lowStock', 'status', 'createdAt'],
-  StockIn: ['id', 'date', 'productId', 'quantity', 'supplier', 'reference', 'encodedBy', 'createdAt'],
-  Sales: ['id', 'date', 'productId', 'quantity', 'price', 'total', 'customer', 'encodedBy', 'createdAt'],
+  StockIn: ['id', 'date', 'productId', 'quantity', 'supplier', 'reference', 'encodedBy', 'status', 'createdAt'],
+  Sales: ['id', 'date', 'productId', 'quantity', 'price', 'total', 'customer', 'encodedBy', 'status', 'createdAt'],
   Sessions: ['token', 'userId', 'createdAt', 'expiresAt'],
 };
 
@@ -38,7 +38,11 @@ function handleApi(params) {
     else if (params.action === 'updateProduct') data = updateProduct(payload);
     else if (params.action === 'deleteProduct') data = deleteProduct(payload);
     else if (params.action === 'saveStockIn') data = saveStockIn(payload);
+    else if (params.action === 'updateStockIn') data = updateStockIn(payload);
+    else if (params.action === 'cancelStockIn') data = cancelStockIn(payload);
     else if (params.action === 'saveSale') data = saveSale(payload);
+    else if (params.action === 'updateSale') data = updateSale(payload);
+    else if (params.action === 'cancelSale') data = cancelSale(payload);
     else data = { message: 'Caishen Enterprises API is ready.' };
     return { ok: true, data };
   } catch (error) {
@@ -251,17 +255,37 @@ function deleteProduct(payload) {
 }
 
 function saveStockIn(payload) {
+  const currentTime = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
+  const dateValue = payload.date ? (payload.date.includes(' ') ? payload.date : `${payload.date} ${currentTime}`) : now();
   const row = {
     id: makeId('STK'),
-    date: payload.date,
+    date: dateValue,
     productId: payload.productId,
     quantity: Number(payload.quantity || 0),
     supplier: payload.supplier,
     reference: payload.reference,
     encodedBy: payload.encodedBy,
+    status: 'Active',
     createdAt: now(),
   };
   appendRow(SHEETS.stockIn, row);
+  return getDashboardData();
+}
+
+function updateStockIn(payload) {
+  const updates = {
+    productId: payload.productId,
+    quantity: Number(payload.quantity || 0),
+    supplier: payload.supplier,
+    reference: payload.reference,
+  };
+  if (payload.date) updates.date = payload.date;
+  updateRow(SHEETS.stockIn, payload.id, updates);
+  return getDashboardData();
+}
+
+function cancelStockIn(payload) {
+  updateRow(SHEETS.stockIn, payload.id, { status: 'Cancelled' });
   return getDashboardData();
 }
 
@@ -272,18 +296,42 @@ function saveSale(payload) {
   const quantity = Number(payload.quantity || 0);
   const currentStock = Number(product.beginningStock || 0) + sumByProduct(readRows(SHEETS.stockIn), product.id, 'quantity') - sumByProduct(readRows(SHEETS.sales), product.id, 'quantity');
   if (quantity > currentStock) throw new Error('Quantity sold is greater than current stock.');
+  const currentTime = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
+  const dateValue = payload.date ? (payload.date.includes(' ') ? payload.date : `${payload.date} ${currentTime}`) : now();
   const row = {
     id: makeId('SAL'),
-    date: payload.date,
+    date: dateValue,
     productId: payload.productId,
     quantity,
     price,
     total: price * quantity,
     customer: payload.customer,
     encodedBy: payload.encodedBy,
+    status: 'Completed',
     createdAt: now(),
   };
   appendRow(SHEETS.sales, row);
+  return getDashboardData();
+}
+
+function updateSale(payload) {
+  const product = readRows(SHEETS.products).find((item) => item.id === payload.productId);
+  const price = Number(payload.price || (product ? product.price : 0) || 0);
+  const quantity = Number(payload.quantity || 0);
+  const updates = {
+    productId: payload.productId,
+    quantity,
+    price,
+    total: price * quantity,
+    customer: payload.customer,
+  };
+  if (payload.date) updates.date = payload.date;
+  updateRow(SHEETS.sales, payload.id, updates);
+  return getDashboardData();
+}
+
+function cancelSale(payload) {
+  updateRow(SHEETS.sales, payload.id, { status: 'Cancelled' });
   return getDashboardData();
 }
 
@@ -292,8 +340,13 @@ function readRows(sheetName) {
   if (!sheet || sheet.getLastRow() < 2) return [];
   const values = sheet.getDataRange().getValues();
   const headers = values.shift();
+  const timeZone = Session.getScriptTimeZone();
   return values.map((row) => headers.reduce((record, header, index) => {
-    record[header] = row[index];
+    let val = row[index];
+    if (val instanceof Date) {
+      val = Utilities.formatDate(val, timeZone, 'yyyy-MM-dd HH:mm:ss');
+    }
+    record[header] = val;
     return record;
   }, {}));
 }
@@ -348,7 +401,7 @@ function ensureUnique(sheetName, field, value, ignoreId) {
 
 function sumByProduct(rows, productId, field) {
   return rows
-    .filter((row) => row.productId === productId)
+    .filter((row) => row.productId === productId && row.status !== 'Cancelled')
     .reduce((total, row) => total + Number(row[field] || 0), 0);
 }
 

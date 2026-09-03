@@ -38,23 +38,57 @@
         <p>Product registration, stock-in, sales, and inventory monitoring for admin and encoder teams.</p>
       </div>
 
-      <form class="login-card" id="loginForm" method="post" action="#" onsubmit="return false;">
-        <h2>Sign in</h2>
-        <label>
-          Username
-          <input name="username" value="admin" required>
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" value="admin123" required>
-        </label>
-        <button class="btn primary has-spinner" type="button" id="loginButton" onclick="submitLogin(event)">
-          <span class="btn-text">Login</span>
-          <span class="btn-spinner hidden"></span>
-        </button>
-        <p class="form-note">Default admin: admin / admin123</p>
-        <p class="form-status" id="loginStatus"></p>
-      </form>
+      <div class="login-card-wrap">
+        <form class="login-card" id="loginForm" method="post" action="#" onsubmit="return false;">
+          <div class="card-head">
+            <h2>Sign In</h2>
+            <p>Enter your credentials to access your account</p>
+          </div>
+
+          <div class="form-group">
+            <label for="loginUsername">Username</label>
+            <div class="input-with-icon">
+              <span class="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </span>
+              <input id="loginUsername" name="username" type="text" placeholder="Enter your username" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="loginPassword">Password</label>
+            <div class="input-with-icon password-input-wrap">
+              <span class="field-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </span>
+              <input id="loginPassword" name="password" type="password" placeholder="Enter your password" autocomplete="current-password" required>
+              <button type="button" class="password-toggle-btn" id="togglePasswordBtn" aria-label="Show password" title="Toggle password visibility">
+                <svg class="eye-icon eye-show" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+                <svg class="eye-icon eye-hide hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <button class="btn primary has-spinner login-submit-btn" type="button" id="loginButton" onclick="submitLogin(event)">
+            <span class="btn-text">Sign In</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+
+          <p class="form-status" id="loginStatus"></p>
+        </form>
+      </div>
     </section>
 
     <section class="dashboard hidden" id="dashboardView">
@@ -86,7 +120,7 @@
           </button>
           <button class="nav-item" data-view="products" type="button">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-            <span>Product</span>
+            <span>Products</span>
           </button>
           <button class="nav-item" data-view="stock" type="button">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11l5-5 5 5M12 6v12"></path><rect x="4" y="18" width="16" height="3" rx="1"></rect></svg>
@@ -215,7 +249,7 @@
             </div>
             <div class="table-wrap desktop-table">
               <table>
-                <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Encoded By</th></tr></thead>
+                <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Ref / PO #</th><th>Encoded By</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="stockRows"></tbody>
               </table>
             </div>
@@ -237,7 +271,7 @@
             </div>
             <div class="table-wrap desktop-table">
               <table>
-                <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Encoded By</th></tr></thead>
+                <thead><tr><th>Date</th><th>Product</th><th>Customer</th><th>Qty</th><th>Total</th><th>Encoded By</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="salesRows"></tbody>
               </table>
             </div>
@@ -409,6 +443,7 @@
         <button class="modal-close-btn" type="button" data-close-modal="stockModal" aria-label="Close dialog">&times;</button>
       </div>
       <form class="form-grid modal-body" id="stockForm" method="post" action="#" onsubmit="return false;">
+        <input name="id" type="hidden">
         <label>
           <span>Receipt Date <mark>*</mark></span>
           <input name="date" type="date" required>
@@ -451,6 +486,7 @@
         <button class="modal-close-btn" type="button" data-close-modal="salesModal" aria-label="Close dialog">&times;</button>
       </div>
       <form class="form-grid modal-body" id="salesForm" method="post" action="#" onsubmit="return false;">
+        <input name="id" type="hidden">
         <label>
           <span>Transaction Date <mark>*</mark></span>
           <input name="date" type="date" required>
