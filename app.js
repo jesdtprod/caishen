@@ -11,6 +11,7 @@ const localStore = {
 };
 
 let state = { user: null, data: localStore };
+let lockedModalId = '';
 
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => Array.from(document.querySelectorAll(selector));
@@ -209,8 +210,19 @@ function openModal(modalId) {
 }
 
 function closeModal(modalId) {
+  if (lockedModalId === modalId) return;
   const modal = $(`#${modalId}`);
   if (modal) modal.classList.add('hidden');
+}
+
+function setModalLocked(modalId, isLocked) {
+  const modal = modalId ? $(`#${modalId}`) : null;
+  lockedModalId = isLocked ? modalId : '';
+  if (!modal) return;
+  modal.classList.toggle('is-saving', isLocked);
+  modal.querySelectorAll('[data-close-modal], [data-reset-form]').forEach((button) => {
+    button.disabled = isLocked;
+  });
 }
 
 function setButtonLoading(button, isLoading) {
@@ -505,10 +517,12 @@ function bindForms() {
     }
     const closeBtn = event.target.closest('[data-close-modal]');
     if (closeBtn) {
+      if (lockedModalId === closeBtn.dataset.closeModal) return;
       closeModal(closeBtn.dataset.closeModal);
       return;
     }
     if (event.target.classList.contains('modal-backdrop')) {
+      if (lockedModalId === event.target.id) return;
       event.target.classList.add('hidden');
       return;
     }
@@ -517,12 +531,18 @@ function bindForms() {
   // ESC to close modal
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      $$('.modal-backdrop:not(.hidden)').forEach((modal) => modal.classList.add('hidden'));
+      $$('.modal-backdrop:not(.hidden)').forEach((modal) => {
+        if (lockedModalId !== modal.id) modal.classList.add('hidden');
+      });
     }
   });
 
   $$('[data-reset-form]').forEach((button) => {
-    button.addEventListener('click', () => resetForm(button.dataset.resetForm));
+    button.addEventListener('click', () => {
+      const modal = button.closest('.modal-backdrop');
+      if (modal && lockedModalId === modal.id) return;
+      resetForm(button.dataset.resetForm);
+    });
   });
 
   const confirmDelBtn = $('#confirmDeleteBtn');
@@ -605,25 +625,32 @@ function submitLogin(event) {
 
 function saveForm(event, action, extra = {}) {
   event.preventDefault();
+  const isSaleSave = action === 'saveSale';
+  if (isSaleSave && !window.confirm('Save this sales transaction?')) return;
+
   const form = event.currentTarget;
   const submitBtn = form.querySelector('button[type="submit"]');
+  const modal = form.closest('.modal-backdrop');
+  const modalId = modal ? modal.id : '';
   setButtonLoading(submitBtn, true);
+  if (isSaleSave) setModalLocked(modalId, true);
 
   const payload = Object.assign(Object.fromEntries(new FormData(form)), extra, { encodedBy: state.user ? state.user.name : 'Admin' });
   const finalAction = payload.id ? action.replace('save', 'update') : action;
   apiCall(finalAction, payload)
     .then((data) => {
       setButtonLoading(submitBtn, false);
+      if (isSaleSave) setModalLocked(modalId, false);
       state.data = data;
       const formId = form.getAttribute('id');
       resetForm(formId);
-      const modal = form.closest('.modal-backdrop');
       if (modal) modal.classList.add('hidden');
       render();
       showToast('Saved successfully.');
     })
     .catch((error) => {
       setButtonLoading(submitBtn, false);
+      if (isSaleSave) setModalLocked(modalId, false);
       showToast(error.message || 'Unable to save.', 'error');
     });
 }
