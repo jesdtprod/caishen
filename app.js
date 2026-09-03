@@ -1258,7 +1258,8 @@ function escapeHtml(value) {
 }
 
 function setToday() {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
   $$('input[type="date"]').forEach((input) => {
     if (!input.value) input.value = today;
   });
