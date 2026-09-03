@@ -12,26 +12,35 @@ const HEADERS = {
   Sales: ['id', 'date', 'productId', 'quantity', 'price', 'total', 'customer', 'encodedBy', 'createdAt'],
 };
 
-function doGet() {
+function doGet(event) {
   setupDatabase();
-  const template = HtmlService.createTemplateFromFile('Index');
-  template.logoUrl = getLogoUrl();
-  return template
-    .evaluate()
-    .setTitle('CE Inventory and Sales')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  const params = (event && event.parameter) || {};
+  const callback = params.callback || 'callback';
+  const response = handleApi(params);
+  return ContentService
+    .createTextOutput(`${callback}(${JSON.stringify(response)})`)
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
-function setLogoUrl(url) {
-  PropertiesService.getScriptProperties().setProperty('LOGO_URL', url);
-}
-
-function getLogoUrl() {
-  return PropertiesService.getScriptProperties().getProperty('LOGO_URL') || 'assets/ce-logo.png';
-}
-
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+function handleApi(params) {
+  try {
+    const payload = params.payload ? JSON.parse(params.payload) : {};
+    let data;
+    if (params.action === 'login') data = login(payload.username, payload.password);
+    else if (params.action === 'dashboard') data = getDashboardData();
+    else if (params.action === 'saveUser') data = saveUser(payload);
+    else if (params.action === 'updateUser') data = updateUser(payload);
+    else if (params.action === 'deleteUser') data = deleteUser(payload);
+    else if (params.action === 'saveProduct') data = saveProduct(payload);
+    else if (params.action === 'updateProduct') data = updateProduct(payload);
+    else if (params.action === 'deleteProduct') data = deleteProduct(payload);
+    else if (params.action === 'saveStockIn') data = saveStockIn(payload);
+    else if (params.action === 'saveSale') data = saveSale(payload);
+    else data = { message: 'CE Inventory API is ready.' };
+    return { ok: true, data };
+  } catch (error) {
+    return { ok: false, error: error.message || String(error) };
+  }
 }
 
 function setupDatabase() {
@@ -41,6 +50,8 @@ function setupDatabase() {
     if (!sheet) sheet = ss.insertSheet(name);
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(HEADERS[name]);
+    } else {
+      syncHeaders(sheet, HEADERS[name]);
     }
   });
 
@@ -101,6 +112,8 @@ function getDashboardData() {
 
 function saveUser(payload) {
   requireAdmin(payload.actorRole);
+  if (!payload.password) throw new Error('Password is required for new users.');
+  ensureUnique(SHEETS.users, 'username', payload.username);
   const row = {
     id: makeId('USR'),
     name: payload.name,
@@ -114,7 +127,29 @@ function saveUser(payload) {
   return getDashboardData();
 }
 
+function updateUser(payload) {
+  requireAdmin(payload.actorRole);
+  const existing = findById(SHEETS.users, payload.id);
+  ensureUnique(SHEETS.users, 'username', payload.username, payload.id);
+  updateRow(SHEETS.users, payload.id, {
+    name: payload.name,
+    username: payload.username,
+    password: payload.password || existing.password,
+    role: payload.role,
+    status: payload.status || 'Active',
+  });
+  return getDashboardData();
+}
+
+function deleteUser(payload) {
+  requireAdmin(payload.actorRole);
+  if (payload.id === payload.actorId) throw new Error('You cannot delete your own active login.');
+  deleteRow(SHEETS.users, payload.id);
+  return getDashboardData();
+}
+
 function saveProduct(payload) {
+  ensureUnique(SHEETS.products, 'sku', payload.sku);
   const row = {
     id: makeId('PRD'),
     sku: payload.sku,
@@ -128,6 +163,29 @@ function saveProduct(payload) {
     createdAt: now(),
   };
   appendRow(SHEETS.products, row);
+  return getDashboardData();
+}
+
+function updateProduct(payload) {
+  ensureUnique(SHEETS.products, 'sku', payload.sku, payload.id);
+  updateRow(SHEETS.products, payload.id, {
+    sku: payload.sku,
+    name: payload.name,
+    category: payload.category,
+    unit: payload.unit,
+    price: Number(payload.price || 0),
+    beginningStock: Number(payload.beginningStock || 0),
+    lowStock: Number(payload.lowStock || 0),
+    status: payload.status || 'Active',
+  });
+  return getDashboardData();
+}
+
+function deleteProduct(payload) {
+  const hasStock = readRows(SHEETS.stockIn).some((row) => row.productId === payload.id);
+  const hasSales = readRows(SHEETS.sales).some((row) => row.productId === payload.id);
+  if (hasStock || hasSales) throw new Error('Product already has transactions. Set it to Inactive instead.');
+  deleteRow(SHEETS.products, payload.id);
   return getDashboardData();
 }
 
@@ -182,7 +240,49 @@ function readRows(sheetName) {
 function appendRow(sheetName, record) {
   const sheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
   const headers = HEADERS[sheetName];
-  sheet.appendRow(headers.map((header) => record[header] || ''));
+  sheet.appendRow(headers.map((header) => Object.prototype.hasOwnProperty.call(record, header) ? record[header] : ''));
+}
+
+function syncHeaders(sheet, expectedHeaders) {
+  const currentHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  expectedHeaders.forEach((header) => {
+    if (!currentHeaders.includes(header)) {
+      sheet.getRange(1, sheet.getLastColumn() + 1).setValue(header);
+    }
+  });
+}
+
+function updateRow(sheetName, id, updates) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
+  const values = sheet.getDataRange().getValues();
+  const headers = values[0];
+  const rowIndex = values.findIndex((row, index) => index > 0 && row[0] === id);
+  if (rowIndex < 1) throw new Error('Record not found.');
+  Object.keys(updates).forEach((key) => {
+    const columnIndex = headers.indexOf(key);
+    if (columnIndex >= 0) sheet.getRange(rowIndex + 1, columnIndex + 1).setValue(updates[key]);
+  });
+}
+
+function deleteRow(sheetName, id) {
+  const sheet = SpreadsheetApp.getActive().getSheetByName(sheetName);
+  const values = sheet.getDataRange().getValues();
+  const rowIndex = values.findIndex((row, index) => index > 0 && row[0] === id);
+  if (rowIndex < 1) throw new Error('Record not found.');
+  sheet.deleteRow(rowIndex + 1);
+}
+
+function findById(sheetName, id) {
+  const record = readRows(sheetName).find((row) => row.id === id);
+  if (!record) throw new Error('Record not found.');
+  return record;
+}
+
+function ensureUnique(sheetName, field, value, ignoreId) {
+  const exists = readRows(sheetName).some((row) =>
+    String(row[field]).toLowerCase() === String(value).toLowerCase() && row.id !== ignoreId
+  );
+  if (exists) throw new Error(`${field} already exists.`);
 }
 
 function sumByProduct(rows, productId, field) {

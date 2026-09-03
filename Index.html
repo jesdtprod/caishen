@@ -1,17 +1,16 @@
 <!doctype html>
 <html>
 <head>
-  <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CE Inventory and Sales</title>
-  <?!= include('Styles'); ?>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <main class="app-shell">
     <section class="login-view" id="loginView">
       <div class="brand-panel">
-        <img class="brand-mark" src="<?= logoUrl ?>" alt="CE logo">
+        <img class="brand-mark" src="assets/ce-logo.png" alt="CE logo">
         <h1>CE Inventory and Sales</h1>
         <p>Product registration, stock-in, sales, and inventory monitoring for admin and encoder teams.</p>
       </div>
@@ -34,7 +33,7 @@
     <section class="dashboard hidden" id="dashboardView">
       <aside class="sidebar">
         <div class="sidebar-brand">
-          <img src="<?= logoUrl ?>" alt="CE logo">
+          <img src="assets/ce-logo.png" alt="CE logo">
           <div>
             <strong>CE Inventory</strong>
             <span id="roleLabel">Admin</span>
@@ -80,6 +79,7 @@
           <div class="panel">
             <div class="panel-head"><h3>Register Product</h3></div>
             <form class="form-grid" id="productForm">
+              <input name="id" type="hidden">
               <label>SKU<input name="sku" required></label>
               <label>Product Name<input name="name" required></label>
               <label>Category<input name="category" required></label>
@@ -88,10 +88,11 @@
               <label>Beginning Stock<input name="beginningStock" type="number" min="0" required></label>
               <label>Low Stock Level<input name="lowStock" type="number" min="0" required></label>
               <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
-              <button class="btn primary" type="submit">Save Product</button>
+              <button class="btn primary" type="submit" id="productSubmit">Save Product</button>
+              <button class="btn ghost" type="button" data-reset-form="productForm">Clear</button>
             </form>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Beginning</th><th>Status</th></tr></thead><tbody id="productRows"></tbody></table></div></div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Beginning</th><th>Status</th><th>Action</th></tr></thead><tbody id="productRows"></tbody></table></div></div>
         </section>
 
         <section class="view" id="stock">
@@ -135,20 +136,22 @@
           <div class="panel">
             <div class="panel-head"><h3>Create User</h3></div>
             <form class="form-grid" id="userForm">
+              <input name="id" type="hidden">
               <label>Name<input name="name" required></label>
               <label>Username<input name="username" required></label>
-              <label>Password<input name="password" type="password" required></label>
+              <label>Password<input name="password" type="password" placeholder="Leave blank to keep current password"></label>
               <label>Role<select name="role"><option>Staff</option><option>Admin</option></select></label>
               <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
-              <button class="btn primary" type="submit">Create User</button>
+              <button class="btn primary" type="submit" id="userSubmit">Create User</button>
+              <button class="btn ghost" type="button" data-reset-form="userForm">Clear</button>
             </form>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th></tr></thead><tbody id="userRows"></tbody></table></div></div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div></div>
         </section>
       </section>
     </section>
   </main>
   <div class="toast" id="toast"></div>
-  <?!= include('Client'); ?>
+  <script src="app.js"></script>
 </body>
 </html>
