@@ -215,7 +215,7 @@ function renderSkeletonRows(colCount = 5, rowCount = 4) {
 function showAllSkeletons() {
   const targets = [
     { sel: '#overviewRows', cols: 4 },
-    { sel: '#productRows', cols: 7 },
+    { sel: '#productRows', cols: 6 },
     { sel: '#stockRows', cols: 5 },
     { sel: '#salesRows', cols: 5 },
     { sel: '#inventoryRows', cols: 6 },
@@ -644,7 +644,7 @@ function render() {
 
   fillSelects(data.products);
   fillRows('#overviewRows', inventory.slice(0, 8), (item) => [item.sku, item.name, item.currentStock, badge(item.stockStatus)]);
-  fillRows('#productRows', data.products, (item) => [item.sku, item.name, item.category, money(item.price), item.beginningStock || 0, badge(item.status), rowActions('product', item.id)]);
+  fillRows('#productRows', data.products, (item) => [item.sku, item.name, item.category, money(item.price), badge(item.status), rowActions('product', item.id)]);
   fillRows('#stockRows', data.stockIn, (item) => [item.date, productName(item.productId), item.quantity, item.supplier || '-', item.encodedBy || '-']);
   fillRows('#salesRows', data.sales, (item) => [item.date, productName(item.productId), item.quantity, money(item.total), item.encodedBy || '-']);
   fillRows('#userRows', data.users, (item) => [item.name, item.username, item.role, badge(item.status), rowActions('user', item.id)]);
