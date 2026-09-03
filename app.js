@@ -591,27 +591,38 @@ function saveForm(event, action, extra = {}) {
     });
 }
 
+function closeAllKebabMenus() {
+  $$('.kebab-wrap.open').forEach((w) => w.classList.remove('open'));
+  $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
+}
+
 function handleActions(event) {
-  const kebabBtn = event.target.closest('[data-kebab-toggle]');
+  const kebabBtn = event.target.closest('.kebab-btn, [data-kebab-toggle]');
   if (kebabBtn) {
+    event.preventDefault();
     event.stopPropagation();
-    const id = kebabBtn.dataset.kebabToggle;
-    const menu = $(`#kebab-${id}`);
-    const isOpen = menu && menu.classList.contains('open');
-    $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
-    if (menu && !isOpen) menu.classList.add('open');
+    const wrap = kebabBtn.closest('.kebab-wrap');
+    const menu = wrap ? wrap.querySelector('.kebab-menu') : null;
+    const wasOpen = wrap && wrap.classList.contains('open');
+
+    closeAllKebabMenus();
+
+    if (wrap && menu && !wasOpen) {
+      wrap.classList.add('open');
+      menu.classList.add('open');
+    }
     return;
   }
 
   const button = event.target.closest('[data-action]');
   if (!button) return;
 
-  $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
+  closeAllKebabMenus();
 
   const type = button.dataset.type;
   const id = button.dataset.id;
   const rows = type === 'product' ? state.data.products : state.data.users;
-  const item = rows.find((record) => record.id === id);
+  const item = rows.find((record) => String(record.id) === String(id));
   if (!item) return;
   if (button.dataset.action === 'edit') return editRecord(type, item);
   if (button.dataset.action === 'delete') return promptDelete(type, id);
@@ -621,7 +632,7 @@ let pendingDelete = null;
 
 function promptDelete(type, id) {
   const rows = type === 'product' ? state.data.products : state.data.users;
-  const item = rows.find((record) => record.id === id);
+  const item = rows.find((record) => String(record.id) === String(id));
   if (!item) return;
 
   pendingDelete = { type, id, item };
@@ -934,15 +945,15 @@ function badge(text) {
 
 function rowActions(type, id) {
   return `<div class="kebab-wrap">
-    <button class="kebab-btn" data-kebab-toggle="${id}" type="button" aria-label="More actions" title="Actions">
+    <button class="kebab-btn" data-kebab-toggle="${escapeHtml(id)}" type="button" aria-label="More actions" title="Actions">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
     </button>
-    <div class="kebab-menu" id="kebab-${id}">
-      <button class="kebab-item" data-action="edit" data-type="${type}" data-id="${id}" type="button">
+    <div class="kebab-menu">
+      <button class="kebab-item" data-action="edit" data-type="${type}" data-id="${escapeHtml(id)}" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         <span>Edit</span>
       </button>
-      <button class="kebab-item danger" data-action="delete" data-type="${type}" data-id="${id}" type="button">
+      <button class="kebab-item danger" data-action="delete" data-type="${type}" data-id="${escapeHtml(id)}" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
         <span>Delete</span>
       </button>
