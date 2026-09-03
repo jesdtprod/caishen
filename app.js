@@ -342,6 +342,12 @@ function initCustomSelect(select) {
     });
     wrap.classList.toggle('open', !isOpen);
     trigger.setAttribute('aria-expanded', String(!isOpen));
+    const searchInput = wrap.querySelector('.custom-select-search-input');
+    if (!isOpen && searchInput) {
+      searchInput.value = '';
+      filterCustomSelectOptions(menu, '');
+      setTimeout(() => searchInput.focus(), 0);
+    }
   });
 
   buildCustomOptions(select, menu, label);
@@ -362,6 +368,28 @@ function buildCustomOptions(select, menu, label) {
   if (!menu) return;
   menu.innerHTML = '';
   const options = Array.from(select.options);
+  const isSearchable = select.name === 'productId';
+  menu.classList.toggle('is-searchable', isSearchable);
+  let optionTarget = menu;
+
+  if (isSearchable) {
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'custom-select-search';
+    const searchInput = document.createElement('input');
+    searchInput.type = 'search';
+    searchInput.className = 'custom-select-search-input';
+    searchInput.placeholder = 'Search product';
+    searchInput.setAttribute('aria-label', 'Search product');
+    searchInput.addEventListener('click', (event) => event.stopPropagation());
+    searchInput.addEventListener('keydown', (event) => event.stopPropagation());
+    searchInput.addEventListener('input', () => filterCustomSelectOptions(menu, searchInput.value));
+    searchWrap.appendChild(searchInput);
+    menu.appendChild(searchWrap);
+
+    optionTarget = document.createElement('div');
+    optionTarget.className = 'custom-select-options';
+    menu.appendChild(optionTarget);
+  }
 
   options.forEach((opt) => {
     const item = document.createElement('div');
@@ -394,10 +422,17 @@ function buildCustomOptions(select, menu, label) {
       if (wrap) wrap.classList.remove('open');
     });
 
-    menu.appendChild(item);
+    optionTarget.appendChild(item);
   });
 
   syncCustomSelectLabel(select, label, menu);
+}
+
+function filterCustomSelectOptions(menu, query) {
+  const searchText = query.trim().toLowerCase();
+  menu.querySelectorAll('.custom-select-option').forEach((option) => {
+    option.classList.toggle('hidden', searchText && !option.textContent.toLowerCase().includes(searchText));
+  });
 }
 
 function syncCustomSelectLabel(select, label, menu) {
