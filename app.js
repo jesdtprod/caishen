@@ -32,21 +32,38 @@ function apiCall(action, payload = {}) {
       callback,
       payload: JSON.stringify(payload),
     });
+    let completed = false;
+    let timeoutId;
 
     window[callback] = (response) => {
+      completed = true;
       cleanup();
       response.ok ? resolve(response.data) : reject(new Error(response.error));
     };
 
     script.onerror = () => {
+      if (completed) return;
       cleanup();
-      reject(new Error('Unable to connect to Google Apps Script.'));
+      reject(new Error('Google Apps Script was blocked by the browser. Disable ad blocker/shields for this site, then reload.'));
+    };
+
+    script.onload = () => {
+      if (completed) return;
+      cleanup();
+      reject(new Error('Google Apps Script loaded but did not return data. Redeploy Apps Script as a new version.'));
     };
 
     function cleanup() {
+      clearTimeout(timeoutId);
       delete window[callback];
       script.remove();
     }
+
+    timeoutId = setTimeout(() => {
+      if (completed) return;
+      cleanup();
+      reject(new Error('Google Apps Script did not respond. Check deployment access is Anyone.'));
+    }, 12000);
 
     script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
     document.body.appendChild(script);
