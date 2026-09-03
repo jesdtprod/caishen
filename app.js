@@ -1,5 +1,6 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPPqwKKK04voCZAATZFp2oDLYmps51VKlDJY0FKWojm1Y2mnOPp33co1FeT4xjsCXC9g/exec';
 const SESSION_KEY = 'caishen_session_token';
+const VIEW_KEY = 'caishen_active_view';
 
 const localStore = {
   users: [{ id: 'USR-DEMO', name: 'Administrator', username: 'admin', role: 'Admin', status: 'Active' }],
@@ -326,9 +327,14 @@ function showDashboard(user, data) {
   $('#loginView').classList.add('hidden');
   $('#dashboardView').classList.remove('hidden');
   $('#roleLabel').textContent = user.role;
-  $('#userChip').textContent = user.name + ' - ' + user.role;
+  const userText = $('#userChip .user-name-text');
+  if (userText) userText.textContent = `${user.name} (${user.role})`;
+  else $('#userChip').textContent = `${user.name} - ${user.role}`;
+  const mobileAvatar = $('#mobileUserAvatar') || $('#mobileUserChip');
+  if (mobileAvatar) mobileAvatar.textContent = (user.name || 'U').charAt(0).toUpperCase();
   $$('.admin-only').forEach((item) => item.classList.toggle('hidden', user.role !== 'Admin'));
   render();
+  showView(getSavedView());
 }
 
 function saveSession(token) {
@@ -337,6 +343,7 @@ function saveSession(token) {
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(VIEW_KEY);
 }
 
 function submitLogin(event) {
@@ -350,16 +357,7 @@ function submitLogin(event) {
     .then((result) => {
       setButtonLoading(loginBtn, false);
       saveSession(result.token);
-      state.user = result.user;
-      state.data = result.data;
-      $('#loginView').classList.add('hidden');
-      $('#dashboardView').classList.remove('hidden');
-      $('#roleLabel').textContent = result.user.role;
-      $('#userChip .user-name-text') ? $('#userChip .user-name-text').textContent = `${result.user.name} (${result.user.role})` : $('#userChip').textContent = `${result.user.name} - ${result.user.role}`;
-      const mobileAvatar = $('#mobileUserAvatar') || $('#mobileUserChip');
-      if (mobileAvatar) mobileAvatar.textContent = (result.user.name || 'U').charAt(0).toUpperCase();
-      $$('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
-      render();
+      showDashboard(result.user, result.data);
       setLoginStatus('Login successful.');
       showToast(`Welcome back, ${result.user.name}!`);
     })
@@ -450,10 +448,18 @@ function resetForm(formId) {
   setToday();
 }
 
+function getSavedView() {
+  const saved = localStorage.getItem(VIEW_KEY);
+  if (saved === 'users' && state.user && state.user.role !== 'Admin') return 'overview';
+  return saved && document.getElementById(saved) ? saved : 'overview';
+}
+
 function showView(viewId) {
-  $$('.view').forEach((view) => view.classList.toggle('active', view.id === viewId));
-  $$('.nav-item[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
-  const navBtn = document.querySelector(`[data-view="${viewId}"]`);
+  const targetView = document.getElementById(viewId) ? viewId : 'overview';
+  localStorage.setItem(VIEW_KEY, targetView);
+  $$('.view').forEach((view) => view.classList.toggle('active', view.id === targetView));
+  $$('.nav-item[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === targetView));
+  const navBtn = document.querySelector(`[data-view="${targetView}"]`);
   if (navBtn) {
     const span = navBtn.querySelector('span');
     $('#pageTitle').textContent = span ? span.textContent : navBtn.textContent;
