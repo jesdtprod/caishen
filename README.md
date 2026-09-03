@@ -1,4 +1,4 @@
-# CE Inventory and Sales
+# Caishen Enterprises
 
 Simple GitHub Pages frontend with Google Apps Script and Google Sheets backend.
 

@@ -36,7 +36,7 @@ function handleApi(params) {
     else if (params.action === 'deleteProduct') data = deleteProduct(payload);
     else if (params.action === 'saveStockIn') data = saveStockIn(payload);
     else if (params.action === 'saveSale') data = saveSale(payload);
-    else data = { message: 'CE Inventory API is ready.' };
+    else data = { message: 'Caishen Enterprises API is ready.' };
     return { ok: true, data };
   } catch (error) {
     return { ok: false, error: error.message || String(error) };
