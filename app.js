@@ -62,8 +62,8 @@ function apiCall(action, payload = {}) {
     timeoutId = setTimeout(() => {
       if (completed) return;
       cleanup();
-      reject(new Error('Google Apps Script did not respond. Check deployment access is Anyone.'));
-    }, 12000);
+      reject(new Error('Google Apps Script is taking too long. Try again, then check deployment access is Anyone.'));
+    }, 45000);
 
     script.src = `${APPS_SCRIPT_URL}?${params.toString()}`;
     document.body.appendChild(script);
@@ -304,3 +304,4 @@ function showToast(message) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
+

@@ -13,8 +13,8 @@ const HEADERS = {
 };
 
 function doGet(event) {
-  setupDatabase();
   const params = (event && event.parameter) || {};
+  if (!params.action) setupDatabase();
   const callback = params.callback || 'callback';
   const response = handleApi(params);
   return ContentService
@@ -329,3 +329,4 @@ function makeId(prefix) {
 function now() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
 }
+
