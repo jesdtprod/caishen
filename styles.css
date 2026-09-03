@@ -1481,6 +1481,10 @@ tbody tr:hover {
   pointer-events: none;
 }
 
+#confirmModal {
+  z-index: 1200;
+}
+
 .modal-card {
   width: 100%;
   max-width: 680px;
