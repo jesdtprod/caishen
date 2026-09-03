@@ -327,7 +327,7 @@ function showDashboard(user, data) {
   $('#dashboardView').classList.remove('hidden');
   $('#roleLabel').textContent = user.role;
   $('#userChip').textContent = user.name + ' - ' + user.role;
-  $('.admin-only').forEach((item) => item.classList.toggle('hidden', user.role !== 'Admin'));
+  $$('.admin-only').forEach((item) => item.classList.toggle('hidden', user.role !== 'Admin'));
   render();
 }
 
@@ -572,4 +572,5 @@ function showToast(message, type = 'success') {
     toast.classList.remove('show');
   }, 3200);
 }
+
 

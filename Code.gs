@@ -3,6 +3,7 @@ const SHEETS = {
   products: 'Products',
   stockIn: 'StockIn',
   sales: 'Sales',
+  sessions: 'Sessions',
 };
 
 const HEADERS = {
@@ -10,6 +11,7 @@ const HEADERS = {
   Products: ['id', 'sku', 'name', 'category', 'unit', 'price', 'beginningStock', 'lowStock', 'status', 'createdAt'],
   StockIn: ['id', 'date', 'productId', 'quantity', 'supplier', 'reference', 'encodedBy', 'createdAt'],
   Sales: ['id', 'date', 'productId', 'quantity', 'price', 'total', 'customer', 'encodedBy', 'createdAt'],
+  Sessions: ['token', 'userId', 'createdAt', 'expiresAt'],
 };
 
 function doGet(event) {
@@ -27,6 +29,7 @@ function handleApi(params) {
     const payload = params.payload ? JSON.parse(params.payload) : {};
     let data;
     if (params.action === 'login') data = login(payload.username, payload.password);
+    else if (params.action === 'session') data = getSession(payload.token);
     else if (params.action === 'dashboard') data = getDashboardData();
     else if (params.action === 'saveUser') data = saveUser(payload);
     else if (params.action === 'updateUser') data = updateUser(payload);
@@ -362,5 +365,7 @@ function makeId(prefix) {
 function now() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
 }
+
+
 
 
