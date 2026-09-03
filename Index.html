@@ -1,0 +1,154 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CE Inventory and Sales</title>
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <main class="app-shell">
+    <section class="login-view" id="loginView">
+      <div class="brand-panel">
+        <img class="brand-mark" src="<?= logoUrl ?>" alt="CE logo">
+        <h1>CE Inventory and Sales</h1>
+        <p>Product registration, stock-in, sales, and inventory monitoring for admin and encoder teams.</p>
+      </div>
+
+      <form class="login-card" id="loginForm">
+        <h2>Sign in</h2>
+        <label>
+          Username
+          <input name="username" value="admin" required>
+        </label>
+        <label>
+          Password
+          <input name="password" type="password" value="admin123" required>
+        </label>
+        <button class="btn primary" type="submit">Login</button>
+        <p class="form-note">Default admin: admin / admin123</p>
+      </form>
+    </section>
+
+    <section class="dashboard hidden" id="dashboardView">
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <img src="<?= logoUrl ?>" alt="CE logo">
+          <div>
+            <strong>CE Inventory</strong>
+            <span id="roleLabel">Admin</span>
+          </div>
+        </div>
+        <button class="nav-item active" data-view="overview">Dashboard</button>
+        <button class="nav-item" data-view="products">Product Registration</button>
+        <button class="nav-item" data-view="stock">Stock-In</button>
+        <button class="nav-item" data-view="sales">Sales</button>
+        <button class="nav-item" data-view="inventory">Inventory</button>
+        <button class="nav-item admin-only" data-view="users">Users</button>
+        <button class="nav-item logout" id="logoutButton">Logout</button>
+      </aside>
+
+      <section class="content">
+        <header class="topbar">
+          <div>
+            <span class="eyebrow">Welcome</span>
+            <h2 id="pageTitle">Dashboard</h2>
+          </div>
+          <div class="user-chip" id="userChip">Admin</div>
+        </header>
+
+        <section class="view active" id="overview">
+          <div class="stat-grid">
+            <article class="stat-card"><span>Products</span><strong id="statProducts">0</strong></article>
+            <article class="stat-card green"><span>Total Stock</span><strong id="statStock">0</strong></article>
+            <article class="stat-card"><span>Sales Amount</span><strong id="statSales">0.00</strong></article>
+            <article class="stat-card alert"><span>Low Stock</span><strong id="statLow">0</strong></article>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h3>Inventory Snapshot</h3></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>SKU</th><th>Product</th><th>Stock</th><th>Status</th></tr></thead>
+                <tbody id="overviewRows"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="products">
+          <div class="panel">
+            <div class="panel-head"><h3>Register Product</h3></div>
+            <form class="form-grid" id="productForm">
+              <label>SKU<input name="sku" required></label>
+              <label>Product Name<input name="name" required></label>
+              <label>Category<input name="category" required></label>
+              <label>Unit<input name="unit" placeholder="pcs, box, kilo" required></label>
+              <label>Selling Price<input name="price" type="number" min="0" step="0.01" required></label>
+              <label>Beginning Stock<input name="beginningStock" type="number" min="0" required></label>
+              <label>Low Stock Level<input name="lowStock" type="number" min="0" required></label>
+              <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
+              <button class="btn primary" type="submit">Save Product</button>
+            </form>
+          </div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Beginning</th><th>Status</th></tr></thead><tbody id="productRows"></tbody></table></div></div>
+        </section>
+
+        <section class="view" id="stock">
+          <div class="panel">
+            <div class="panel-head"><h3>Stock-In Entry</h3></div>
+            <form class="form-grid" id="stockForm">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Product<select name="productId" required></select></label>
+              <label>Quantity<input name="quantity" type="number" min="1" required></label>
+              <label>Supplier<input name="supplier"></label>
+              <label>Reference<input name="reference"></label>
+              <button class="btn green" type="submit">Save Stock-In</button>
+            </form>
+          </div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Encoded By</th></tr></thead><tbody id="stockRows"></tbody></table></div></div>
+        </section>
+
+        <section class="view" id="sales">
+          <div class="panel">
+            <div class="panel-head"><h3>Sales Entry</h3></div>
+            <form class="form-grid" id="salesForm">
+              <label>Date<input name="date" type="date" required></label>
+              <label>Product<select name="productId" required></select></label>
+              <label>Quantity<input name="quantity" type="number" min="1" required></label>
+              <label>Price<input name="price" type="number" min="0" step="0.01"></label>
+              <label>Customer<input name="customer"></label>
+              <button class="btn primary" type="submit">Save Sale</button>
+            </form>
+          </div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Encoded By</th></tr></thead><tbody id="salesRows"></tbody></table></div></div>
+        </section>
+
+        <section class="view" id="inventory">
+          <div class="panel">
+            <div class="panel-head"><h3>Inventory</h3><input class="search" id="inventorySearch" placeholder="Search product"></div>
+            <div class="table-wrap"><table><thead><tr><th>SKU</th><th>Product</th><th>Stock-In</th><th>Sold</th><th>Current</th><th>Status</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+          </div>
+        </section>
+
+        <section class="view" id="users">
+          <div class="panel">
+            <div class="panel-head"><h3>Create User</h3></div>
+            <form class="form-grid" id="userForm">
+              <label>Name<input name="name" required></label>
+              <label>Username<input name="username" required></label>
+              <label>Password<input name="password" type="password" required></label>
+              <label>Role<select name="role"><option>Staff</option><option>Admin</option></select></label>
+              <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
+              <button class="btn primary" type="submit">Create User</button>
+            </form>
+          </div>
+          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th></tr></thead><tbody id="userRows"></tbody></table></div></div>
+        </section>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <?!= include('Client'); ?>
+</body>
+</html>

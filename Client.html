@@ -1,0 +1,201 @@
+<script>
+const localStore = {
+  users: [{ id: 'USR-DEMO', name: 'Administrator', username: 'admin', role: 'Admin', status: 'Active' }],
+  products: [],
+  stockIn: [],
+  sales: [],
+  inventory: [],
+};
+
+let state = { user: null, data: localStore };
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+document.addEventListener('DOMContentLoaded', () => {
+  setToday();
+  bindNavigation();
+  bindForms();
+});
+
+function gasCall(functionName, ...args) {
+  if (!window.google || !google.script || !google.script.run) {
+    return Promise.resolve(mockCall(functionName, ...args));
+  }
+  return new Promise((resolve, reject) => {
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[functionName](...args);
+  });
+}
+
+function mockCall(functionName, ...args) {
+  if (functionName === 'login') {
+    return { user: localStore.users[0], data: localStore };
+  }
+  if (functionName === 'saveProduct') localStore.products.push(withId('PRD', args[0]));
+  if (functionName === 'saveStockIn') localStore.stockIn.push(withId('STK', args[0]));
+  if (functionName === 'saveSale') {
+    const item = args[0];
+    const product = localStore.products.find((productItem) => productItem.id === item.productId);
+    const price = Number(item.price || (product ? product.price : 0) || 0);
+    localStore.sales.push(withId('SAL', Object.assign({}, item, {
+      price,
+      total: Number(item.quantity || 0) * price,
+    })));
+  }
+  if (functionName === 'saveUser') localStore.users.push(withId('USR', args[0]));
+  refreshLocalInventory();
+  return localStore;
+}
+
+function withId(prefix, item) {
+  return Object.assign({ id: `${prefix}-${Date.now()}` }, item);
+}
+
+function refreshLocalInventory() {
+  localStore.inventory = localStore.products.map((product) => {
+    const stockIn = sum(localStore.stockIn, product.id);
+    const sold = sum(localStore.sales, product.id);
+    const currentStock = Number(product.beginningStock || 0) + stockIn - sold;
+    return Object.assign({}, product, {
+      stockIn,
+      sold,
+      currentStock,
+      stockStatus: currentStock <= Number(product.lowStock || 0) ? 'Low Stock' : 'In Stock',
+    });
+  });
+}
+
+function sum(rows, productId) {
+  return rows.filter((row) => row.productId === productId).reduce((total, row) => total + Number(row.quantity || 0), 0);
+}
+
+function bindNavigation() {
+  $$('.nav-item[data-view]').forEach((button) => {
+    button.addEventListener('click', () => showView(button.dataset.view));
+  });
+  $('#logoutButton').addEventListener('click', () => {
+    state = { user: null, data: localStore };
+    $('#loginView').classList.remove('hidden');
+    $('#dashboardView').classList.add('hidden');
+  });
+}
+
+function bindForms() {
+  $('#loginForm').addEventListener('submit', submitLogin);
+  $('#productForm').addEventListener('submit', (event) => saveForm(event, 'saveProduct'));
+  $('#stockForm').addEventListener('submit', (event) => saveForm(event, 'saveStockIn'));
+  $('#salesForm').addEventListener('submit', (event) => saveForm(event, 'saveSale'));
+  $('#userForm').addEventListener('submit', (event) => saveForm(event, 'saveUser', { actorRole: state.user.role }));
+  $('#inventorySearch').addEventListener('input', render);
+}
+
+function submitLogin(event) {
+  event.preventDefault();
+  const form = Object.fromEntries(new FormData(event.currentTarget));
+  gasCall('login', form.username, form.password)
+    .then((result) => {
+      state.user = result.user;
+      state.data = result.data;
+      $('#loginView').classList.add('hidden');
+      $('#dashboardView').classList.remove('hidden');
+      $('#roleLabel').textContent = result.user.role;
+      $('#userChip').textContent = `${result.user.name} - ${result.user.role}`;
+      $$('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
+      render();
+      showToast('Login successful.');
+    })
+    .catch((error) => showToast(error.message || 'Login failed.'));
+}
+
+function saveForm(event, functionName, extra = {}) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const payload = Object.assign(Object.fromEntries(new FormData(form)), extra, { encodedBy: state.user.name });
+  gasCall(functionName, payload)
+    .then((data) => {
+      state.data = data;
+      form.reset();
+      setToday();
+      render();
+      showToast('Saved successfully.');
+    })
+    .catch((error) => showToast(error.message || 'Unable to save.'));
+}
+
+function showView(viewId) {
+  $$('.view').forEach((view) => view.classList.toggle('active', view.id === viewId));
+  $$('.nav-item[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
+  $('#pageTitle').textContent = document.querySelector(`[data-view="${viewId}"]`).textContent;
+}
+
+function render() {
+  const data = state.data;
+  const inventory = data.inventory || [];
+  $('#statProducts').textContent = data.products.length;
+  $('#statStock').textContent = inventory.reduce((total, item) => total + Number(item.currentStock || 0), 0);
+  $('#statSales').textContent = money(data.sales.reduce((total, item) => total + Number(item.total || 0), 0));
+  $('#statLow').textContent = inventory.filter((item) => item.stockStatus === 'Low Stock').length;
+
+  fillSelects(data.products);
+  fillRows('#overviewRows', inventory.slice(0, 8), (item) => [item.sku, item.name, item.currentStock, badge(item.stockStatus)]);
+  fillRows('#productRows', data.products, (item) => [item.sku, item.name, item.category, money(item.price), item.beginningStock || 0, badge(item.status)]);
+  fillRows('#stockRows', data.stockIn, (item) => [item.date, productName(item.productId), item.quantity, item.supplier || '-', item.encodedBy || '-']);
+  fillRows('#salesRows', data.sales, (item) => [item.date, productName(item.productId), item.quantity, money(item.total), item.encodedBy || '-']);
+  fillRows('#userRows', data.users, (item) => [item.name, item.username, item.role, badge(item.status)]);
+
+  const query = $('#inventorySearch').value.toLowerCase();
+  fillRows('#inventoryRows', inventory.filter((item) => `${item.sku} ${item.name}`.toLowerCase().includes(query)), (item) => [
+    item.sku, item.name, item.stockIn, item.sold, item.currentStock, badge(item.stockStatus),
+  ]);
+}
+
+function fillSelects(products) {
+  $$('select[name="productId"]').forEach((select) => {
+    const current = select.value;
+    select.innerHTML = '<option value="">Select product</option>' + products.map((item) =>
+      `<option value="${item.id}">${escapeHtml(item.sku)} - ${escapeHtml(item.name)}</option>`
+    ).join('');
+    select.value = current;
+  });
+}
+
+function fillRows(selector, rows, mapper) {
+  const target = $(selector);
+  target.innerHTML = rows.length
+    ? rows.map((row) => `<tr>${mapper(row).map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('')
+    : '<tr><td colspan="8">No records yet.</td></tr>';
+}
+
+function productName(productId) {
+  const product = state.data.products.find((item) => item.id === productId);
+  return product ? product.name : '-';
+}
+
+function badge(text) {
+  return `<span class="badge ${text === 'Low Stock' ? 'low' : ''}">${escapeHtml(text || '-')}</span>`;
+}
+
+function money(value) {
+  return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;',
+  }[char]));
+}
+
+function setToday() {
+  const today = new Date().toISOString().slice(0, 10);
+  $$('input[type="date"]').forEach((input) => {
+    if (!input.value) input.value = today;
+  });
+}
+
+function showToast(message) {
+  const toast = $('#toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2400);
+}
+</script>
