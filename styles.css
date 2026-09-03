@@ -1500,11 +1500,16 @@ tbody tr:hover {
 
 .modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 22px 28px;
+  gap: 14px;
+  padding: 20px 24px;
   border-bottom: 1px solid var(--line);
   background: #ffffff;
+}
+
+.modal-header > div {
+  min-width: 0;
 }
 
 .modal-header h3 {
@@ -1522,20 +1527,31 @@ tbody tr:hover {
 }
 
 .modal-close-btn {
-  background: transparent;
-  border: none;
-  font-size: 26px;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  margin: -4px -6px 0 0;
+  padding: 0;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  color: #64748b;
+  font-size: 24px;
   line-height: 1;
-  color: var(--muted);
+  font-weight: 400;
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  transition: all 0.15s ease;
+  border-radius: 10px;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.modal-close-btn:hover {
-  background: var(--surface-alt);
-  color: var(--ink);
+.modal-close-btn:hover,
+.modal-close-btn:focus-visible {
+  background: var(--ce-blue-soft);
+  border-color: rgba(29, 78, 216, 0.28);
+  color: var(--ce-blue);
+  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.12);
+  outline: none;
 }
 
 .modal-body {
@@ -1977,6 +1993,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
   .modal-header {
     padding: 16px 18px;
+    gap: 10px;
   }
 
   .modal-header h3 {
