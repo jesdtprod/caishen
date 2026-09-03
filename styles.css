@@ -1579,3 +1579,23 @@ tbody tr:hover {
 }
 
 
+
+@media (max-width: 860px) {
+  .sidebar {
+    height: 100dvh;
+    max-height: 100dvh;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    overflow: hidden;
+  }
+
+  .sidebar-nav {
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 12px;
+  }
+
+  .nav-item.logout {
+    flex-shrink: 0;
+    margin-top: 10px;
+  }
+}
