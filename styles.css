@@ -1847,49 +1847,50 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   .content {
-    padding: 16px 14px;
+    padding: 14px 12px 22px;
   }
 
   .topbar {
-    margin-bottom: 16px;
+    margin-bottom: 14px;
+    gap: 8px;
   }
 
   .topbar h2 {
-    font-size: 22px;
+    font-size: 24px;
+    line-height: 1.15;
   }
 
-  /* Hide Admin indicators on mobile */
-  .topbar .user-chip,
-  #userChip,
-  #mobileUserChip {
+  .eyebrow {
+    margin-bottom: 4px;
+    font-size: 11px;
+  }
+
+  .login-view.hidden,
+  .dashboard.hidden {
     display: none !important;
   }
 
-  /* Switch from horizontal scroll table to responsive cards on mobile */
-  .desktop-table {
-    display: none !important;
+  .dashboard:not(.hidden) {
+    display: block !important;
   }
 
-  .mobile-cards {
-    display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
-    gap: 14px;
-    padding: 16px 18px;
-  }
-
-  .login-view {
+  .login-view:not(.hidden) {
     display: flex !important;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    padding: 34px 18px 32px;
+    gap: 18px;
   }
 
+  .brand-panel {
     text-align: center;
     max-width: 100%;
   }
 
   .brand-mark {
-    margin: 0 auto 16px;
-    width: 80px;
+    margin: 0 auto 14px;
+    width: 76px;
   }
 
   .brand-panel h1 {
@@ -1901,11 +1902,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     max-width: 360px;
     font-size: 14px;
     line-height: 1.5;
+    margin: 0 auto;
   }
-    gap: 14px;
-    padding: 16px 18px;
+
+  .topbar .user-chip,
+  #userChip,
+  #mobileUserChip {
+    display: none !important;
   }
-    max-width: 100%;
+
+  .desktop-table {
+    display: none !important;
+  }
+
+  .mobile-cards {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+    gap: 12px;
+    padding: 14px 16px;
   }
 
   /* Responsive Modals */
