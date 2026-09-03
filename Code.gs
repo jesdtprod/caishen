@@ -197,7 +197,7 @@ function updateUser(payload) {
 function deleteUser(payload) {
   requireAdmin(payload.actorRole);
   if (payload.id === payload.actorId) throw new Error('You cannot delete your own active login.');
-  deleteRow(SHEETS.users, payload.id);
+  updateRow(SHEETS.users, payload.id, { status: 'Inactive' });
   return getDashboardData();
 }
 
@@ -246,10 +246,7 @@ function nextProductSku() {
 }
 
 function deleteProduct(payload) {
-  const hasStock = readRows(SHEETS.stockIn).some((row) => row.productId === payload.id);
-  const hasSales = readRows(SHEETS.sales).some((row) => row.productId === payload.id);
-  if (hasStock || hasSales) throw new Error('Product already has transactions. Set it to Inactive instead.');
-  deleteRow(SHEETS.products, payload.id);
+  updateRow(SHEETS.products, payload.id, { status: 'Inactive' });
   return getDashboardData();
 }
 

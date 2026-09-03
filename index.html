@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Caishen Enterprises - ERP & Inventory</title>
+  <title>Caishen Enterprises</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -191,12 +191,13 @@
                 <span>Add Product</span>
               </button>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap desktop-table">
               <table>
                 <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="productRows"></tbody>
               </table>
             </div>
+            <div class="mobile-cards" id="productCards"></div>
           </div>
         </section>
 
@@ -212,12 +213,13 @@
                 <span>Add Stock-In</span>
               </button>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap desktop-table">
               <table>
                 <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Encoded By</th></tr></thead>
                 <tbody id="stockRows"></tbody>
               </table>
             </div>
+            <div class="mobile-cards" id="stockCards"></div>
           </div>
         </section>
 
@@ -233,12 +235,13 @@
                 <span>Record Sale</span>
               </button>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap desktop-table">
               <table>
                 <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Encoded By</th></tr></thead>
                 <tbody id="salesRows"></tbody>
               </table>
             </div>
+            <div class="mobile-cards" id="salesCards"></div>
           </div>
         </section>
 
@@ -254,12 +257,13 @@
                 <input class="search" id="inventorySearch" placeholder="Filter by SKU or Product name...">
               </div>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap desktop-table">
               <table>
                 <thead><tr><th>SKU</th><th>Product</th><th>Stock-In</th><th>Sold</th><th>Current</th><th>Status</th></tr></thead>
                 <tbody id="inventoryRows"></tbody>
               </table>
             </div>
+            <div class="mobile-cards" id="inventoryCards"></div>
           </div>
         </section>
 
@@ -275,12 +279,13 @@
                 <span>Add User</span>
               </button>
             </div>
-            <div class="table-wrap">
+            <div class="table-wrap desktop-table">
               <table>
                 <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
                 <tbody id="userRows"></tbody>
               </table>
             </div>
+            <div class="mobile-cards" id="userCards"></div>
           </div>
         </section>
       </section>
@@ -288,6 +293,34 @@
   </main>
 
   <!-- MODAL DIALOGS -->
+
+  <!-- Confirmation Modal for Soft Delete -->
+  <div class="modal-backdrop hidden" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmItemTitle">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h3>Confirm Deletion</h3>
+        <button class="modal-close-btn" type="button" data-close-modal="confirmModal" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="modal-body confirm-modal-body">
+        <div class="confirm-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+            <line x1="12" y1="9" x2="12" y2="13"></line>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+        </div>
+        <h4 class="confirm-item-title" id="confirmItemTitle">Delete Item?</h4>
+        <p class="confirm-item-desc" id="confirmItemDesc">Are you sure you want to delete this item? It will be marked as Inactive (soft delete).</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn ghost" type="button" data-close-modal="confirmModal">Cancel</button>
+        <button class="btn danger has-spinner" type="button" id="confirmDeleteBtn">
+          <span class="btn-text">Yes, Delete</span>
+          <span class="btn-spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Product Modal -->
   <div class="modal-backdrop hidden" id="productModal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">

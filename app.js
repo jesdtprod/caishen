@@ -212,6 +212,25 @@ function renderSkeletonRows(colCount = 5, rowCount = 4) {
   ).join('');
 }
 
+function renderSkeletonCards(count = 3) {
+  return Array.from({ length: count }).map(() =>
+    `<div class="data-card" style="pointer-events: none;">
+      <div class="data-card-header">
+        <div class="skeleton-shimmer" style="width: 80px; height: 20px; border-radius: 4px;"></div>
+        <div class="skeleton-shimmer" style="width: 50px; height: 20px; border-radius: 99px;"></div>
+      </div>
+      <div style="padding-top: 4px;">
+        <div class="skeleton-shimmer" style="width: 65%; height: 16px; border-radius: 4px; margin-bottom: 10px;"></div>
+        <div class="data-card-grid">
+          <div class="skeleton-shimmer" style="width: 100%; height: 24px; border-radius: 4px;"></div>
+          <div class="skeleton-shimmer" style="width: 100%; height: 24px; border-radius: 4px;"></div>
+          <div class="skeleton-shimmer" style="width: 100%; height: 24px; border-radius: 4px;"></div>
+        </div>
+      </div>
+    </div>`
+  ).join('');
+}
+
 function showAllSkeletons() {
   const targets = [
     { sel: '#overviewRows', cols: 4 },
@@ -224,6 +243,10 @@ function showAllSkeletons() {
   targets.forEach(({ sel, cols }) => {
     const el = $(sel);
     if (el) el.innerHTML = renderSkeletonRows(cols, 4);
+  });
+  ['#productCards', '#stockCards', '#salesCards', '#inventoryCards', '#userCards'].forEach((sel) => {
+    const el = $(sel);
+    if (el) el.innerHTML = renderSkeletonCards(3);
   });
 }
 
@@ -464,6 +487,15 @@ function bindForms() {
   $$('[data-reset-form]').forEach((button) => {
     button.addEventListener('click', () => resetForm(button.dataset.resetForm));
   });
+
+  const confirmDelBtn = $('#confirmDeleteBtn');
+  if (confirmDelBtn) confirmDelBtn.addEventListener('click', executeConfirmedDelete);
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.kebab-wrap')) {
+      $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
+    }
+  });
 }
 
 function restoreSession() {
@@ -560,23 +592,70 @@ function saveForm(event, action, extra = {}) {
 }
 
 function handleActions(event) {
+  const kebabBtn = event.target.closest('[data-kebab-toggle]');
+  if (kebabBtn) {
+    event.stopPropagation();
+    const id = kebabBtn.dataset.kebabToggle;
+    const menu = $(`#kebab-${id}`);
+    const isOpen = menu && menu.classList.contains('open');
+    $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
+    if (menu && !isOpen) menu.classList.add('open');
+    return;
+  }
+
   const button = event.target.closest('[data-action]');
   if (!button) return;
+
+  $$('.kebab-menu.open').forEach((m) => m.classList.remove('open'));
+
   const type = button.dataset.type;
   const id = button.dataset.id;
   const rows = type === 'product' ? state.data.products : state.data.users;
   const item = rows.find((record) => record.id === id);
   if (!item) return;
   if (button.dataset.action === 'edit') return editRecord(type, item);
-  if (!confirm(`Delete ${item.name || item.username}?`)) return;
+  if (button.dataset.action === 'delete') return promptDelete(type, id);
+}
+
+let pendingDelete = null;
+
+function promptDelete(type, id) {
+  const rows = type === 'product' ? state.data.products : state.data.users;
+  const item = rows.find((record) => record.id === id);
+  if (!item) return;
+
+  pendingDelete = { type, id, item };
+
+  const title = $('#confirmItemTitle');
+  const desc = $('#confirmItemDesc');
+  const itemName = item.name || item.username || 'this record';
+
+  if (title) title.textContent = `Delete ${type === 'product' ? 'Product' : 'User'}?`;
+  if (desc) desc.innerHTML = `Are you sure you want to delete <strong>${escapeHtml(itemName)}</strong>?<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">This record will be safely archived (soft delete).</span>`;
+
+  openModal('confirmModal');
+}
+
+function executeConfirmedDelete() {
+  if (!pendingDelete) return;
+  const { type, id } = pendingDelete;
+  const confirmBtn = $('#confirmDeleteBtn');
+  setButtonLoading(confirmBtn, true);
+
   const action = type === 'product' ? 'deleteProduct' : 'deleteUser';
   apiCall(action, { id, actorRole: state.user.role, actorId: state.user.id })
     .then((data) => {
+      setButtonLoading(confirmBtn, false);
       state.data = data;
+      closeModal('confirmModal');
+      pendingDelete = null;
       render();
-      showToast('Deleted successfully.');
+      showToast(`${type === 'product' ? 'Product' : 'User'} archived successfully.`);
     })
-    .catch((error) => showToast(error.message || 'Unable to delete.', 'error'));
+    .catch((error) => {
+      setButtonLoading(confirmBtn, false);
+      showToast(error.message || 'Unable to delete.', 'error');
+    });
 }
 
 function editRecord(type, item) {
@@ -644,15 +723,185 @@ function render() {
 
   fillSelects(data.products);
   fillRows('#overviewRows', inventory.slice(0, 8), (item) => [item.sku, item.name, item.currentStock, badge(item.stockStatus)]);
+
   fillRows('#productRows', data.products, (item) => [item.sku, item.name, item.category, money(item.price), badge(item.status), rowActions('product', item.id)]);
+  fillProductCards('#productCards', data.products);
+
   fillRows('#stockRows', data.stockIn, (item) => [item.date, productName(item.productId), item.quantity, item.supplier || '-', item.encodedBy || '-']);
+  fillStockCards('#stockCards', data.stockIn);
+
   fillRows('#salesRows', data.sales, (item) => [item.date, productName(item.productId), item.quantity, money(item.total), item.encodedBy || '-']);
+  fillSalesCards('#salesCards', data.sales);
+
   fillRows('#userRows', data.users, (item) => [item.name, item.username, item.role, badge(item.status), rowActions('user', item.id)]);
+  fillUserCards('#userCards', data.users);
 
   const query = $('#inventorySearch').value.toLowerCase();
-  fillRows('#inventoryRows', inventory.filter((item) => `${item.sku} ${item.name}`.toLowerCase().includes(query)), (item) => [
+  const filteredInventory = inventory.filter((item) => `${item.sku} ${item.name}`.toLowerCase().includes(query));
+  fillRows('#inventoryRows', filteredInventory, (item) => [
     item.sku, item.name, item.stockIn, item.sold, item.currentStock, badge(item.stockStatus),
   ]);
+  fillInventoryCards('#inventoryCards', filteredInventory);
+}
+
+function fillProductCards(selector, products) {
+  const target = $(selector);
+  if (!target) return;
+  if (!products.length) {
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No products found.</div>';
+    return;
+  }
+  target.innerHTML = products.map((item) => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-tags">
+          <span class="sku-tag">${escapeHtml(item.sku)}</span>
+          ${badge(item.status)}
+        </div>
+        ${rowActions('product', item.id)}
+      </div>
+      <div class="data-card-body">
+        <h4 class="data-card-title">${escapeHtml(item.name)}</h4>
+        <div class="data-card-grid">
+          <div class="data-card-field">
+            <span class="field-label">Category</span>
+            <span class="field-val">${escapeHtml(item.category || '-')}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Price</span>
+            <span class="field-val price">₱${money(item.price)}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Beginning</span>
+            <span class="field-val">${item.beginningStock || 0} ${escapeHtml(item.unit || '')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fillUserCards(selector, users) {
+  const target = $(selector);
+  if (!target) return;
+  if (!users.length) {
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No users found.</div>';
+    return;
+  }
+  target.innerHTML = users.map((item) => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <div class="data-card-tags">
+          <span class="sku-tag">${escapeHtml(item.role)}</span>
+          ${badge(item.status)}
+        </div>
+        ${rowActions('user', item.id)}
+      </div>
+      <div class="data-card-body">
+        <h4 class="data-card-title">${escapeHtml(item.name)}</h4>
+        <div class="data-card-grid" style="grid-template-columns: 1fr;">
+          <div class="data-card-field">
+            <span class="field-label">Username</span>
+            <span class="field-val">${escapeHtml(item.username)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fillStockCards(selector, list) {
+  const target = $(selector);
+  if (!target) return;
+  if (!list.length) {
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No stock-in records found.</div>';
+    return;
+  }
+  target.innerHTML = list.map((item) => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <span class="sku-tag">${escapeHtml(item.date)}</span>
+        <span class="badge" style="background: rgba(34,197,94,0.12); color: #15803d; font-weight:700;">+${item.quantity} Inbound</span>
+      </div>
+      <div class="data-card-body">
+        <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
+        <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="data-card-field">
+            <span class="field-label">Supplier</span>
+            <span class="field-val">${escapeHtml(item.supplier || '-')}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Encoded By</span>
+            <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fillSalesCards(selector, list) {
+  const target = $(selector);
+  if (!target) return;
+  if (!list.length) {
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No sales records found.</div>';
+    return;
+  }
+  target.innerHTML = list.map((item) => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <span class="sku-tag">${escapeHtml(item.date)}</span>
+        <span class="field-val price" style="font-size: 15px;">₱${money(item.total)}</span>
+      </div>
+      <div class="data-card-body">
+        <h4 class="data-card-title">${escapeHtml(productName(item.productId))}</h4>
+        <div class="data-card-grid" style="grid-template-columns: 1fr 1fr;">
+          <div class="data-card-field">
+            <span class="field-label">Quantity Sold</span>
+            <span class="field-val">${item.quantity}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Encoded By</span>
+            <span class="field-val">${escapeHtml(item.encodedBy || '-')}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function fillInventoryCards(selector, list) {
+  const target = $(selector);
+  if (!target) return;
+  if (!list.length) {
+    target.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--muted);">No inventory records found.</div>';
+    return;
+  }
+  target.innerHTML = list.map((item) => `
+    <div class="data-card">
+      <div class="data-card-header">
+        <span class="sku-tag">${escapeHtml(item.sku)}</span>
+        ${badge(item.stockStatus)}
+      </div>
+      <div class="data-card-body">
+        <h4 class="data-card-title">${escapeHtml(item.name)}</h4>
+        <div class="data-card-grid">
+          <div class="data-card-field">
+            <span class="field-label">Inbound</span>
+            <span class="field-val">${item.stockIn || 0}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Sold</span>
+            <span class="field-val">${item.sold || 0}</span>
+          </div>
+          <div class="data-card-field">
+            <span class="field-label">Current</span>
+            <span class="field-val" style="color: var(--ce-blue); font-weight: 700;">${item.currentStock || 0}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `).join('');
 }
 
 function fillSelects(products) {
@@ -684,13 +933,20 @@ function badge(text) {
 }
 
 function rowActions(type, id) {
-  return `<div class="row-actions">
-    <button class="row-action" data-action="edit" data-type="${type}" data-id="${id}" type="button" title="Edit ${type === 'product' ? 'Product' : 'User'}" aria-label="Edit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+  return `<div class="kebab-wrap">
+    <button class="kebab-btn" data-kebab-toggle="${id}" type="button" aria-label="More actions" title="Actions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
     </button>
-    <button class="row-action danger" data-action="delete" data-type="${type}" data-id="${id}" type="button" title="Delete ${type === 'product' ? 'Product' : 'User'}" aria-label="Delete">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-    </button>
+    <div class="kebab-menu" id="kebab-${id}">
+      <button class="kebab-item" data-action="edit" data-type="${type}" data-id="${id}" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        <span>Edit</span>
+      </button>
+      <button class="kebab-item danger" data-action="delete" data-type="${type}" data-id="${id}" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+        <span>Delete</span>
+      </button>
+    </div>
   </div>`;
 }
 
