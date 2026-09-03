@@ -15,7 +15,7 @@
         <p>Product registration, stock-in, sales, and inventory monitoring for admin and encoder teams.</p>
       </div>
 
-      <form class="login-card" id="loginForm">
+      <form class="login-card" id="loginForm" method="post" action="#" onsubmit="return false;">
         <h2>Sign in</h2>
         <label>
           Username
@@ -25,7 +25,7 @@
           Password
           <input name="password" type="password" value="admin123" required>
         </label>
-        <button class="btn primary" type="submit">Login</button>
+        <button class="btn primary" type="button" id="loginButton">Login</button>
         <p class="form-note">Default admin: admin / admin123</p>
       </form>
     </section>
@@ -78,7 +78,7 @@
         <section class="view" id="products">
           <div class="panel">
             <div class="panel-head"><h3>Register Product</h3></div>
-            <form class="form-grid" id="productForm">
+            <form class="form-grid" id="productForm" method="post" action="#" onsubmit="return false;">
               <input name="id" type="hidden">
               <label>SKU<input name="sku" value="Auto-generated" readonly></label>
               <label>Product Name<input name="name" required></label>
@@ -112,7 +112,7 @@
         <section class="view" id="stock">
           <div class="panel">
             <div class="panel-head"><h3>Stock-In Entry</h3></div>
-            <form class="form-grid" id="stockForm">
+            <form class="form-grid" id="stockForm" method="post" action="#" onsubmit="return false;">
               <label>Date<input name="date" type="date" required></label>
               <label>Product<select name="productId" required></select></label>
               <label>Quantity<input name="quantity" type="number" min="1" required></label>
@@ -127,7 +127,7 @@
         <section class="view" id="sales">
           <div class="panel">
             <div class="panel-head"><h3>Sales Entry</h3></div>
-            <form class="form-grid" id="salesForm">
+            <form class="form-grid" id="salesForm" method="post" action="#" onsubmit="return false;">
               <label>Date<input name="date" type="date" required></label>
               <label>Product<select name="productId" required></select></label>
               <label>Quantity<input name="quantity" type="number" min="1" required></label>
@@ -149,7 +149,7 @@
         <section class="view" id="users">
           <div class="panel">
             <div class="panel-head"><h3>Create User</h3></div>
-            <form class="form-grid" id="userForm">
+            <form class="form-grid" id="userForm" method="post" action="#" onsubmit="return false;">
               <input name="id" type="hidden">
               <label>Name<input name="name" required></label>
               <label>Username<input name="username" required></label>
@@ -166,7 +166,8 @@
     </section>
   </main>
   <div class="toast" id="toast"></div>
-  <script src="app.js?v=20260903-1915"></script>
+  <script src="app.js?v=20260903-1922"></script>
 </body>
 </html>
+
 
