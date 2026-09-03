@@ -55,18 +55,45 @@ function setupDatabase() {
     }
   });
 
+  ensureDefaultAdmin();
+}
+
+function ensureDefaultAdmin() {
   const users = readRows(SHEETS.users);
-  if (!users.length) {
-    appendRow(SHEETS.users, {
-      id: makeId('USR'),
+  const admin = users.find((user) => String(user.username).toLowerCase() === 'admin');
+  if (!admin) {
+    appendRow(SHEETS.users, defaultAdminRecord());
+  }
+}
+
+function resetDefaultAdmin() {
+  setupDatabase();
+  const users = readRows(SHEETS.users);
+  const admin = users.find((user) => String(user.username).toLowerCase() === 'admin');
+  if (admin) {
+    updateRow(SHEETS.users, admin.id, {
       name: 'Administrator',
       username: 'admin',
       password: 'admin123',
       role: 'Admin',
       status: 'Active',
-      createdAt: now(),
     });
+  } else {
+    appendRow(SHEETS.users, defaultAdminRecord());
   }
+  return getDashboardData();
+}
+
+function defaultAdminRecord() {
+  return {
+    id: makeId('USR'),
+    name: 'Administrator',
+    username: 'admin',
+    password: 'admin123',
+    role: 'Admin',
+    status: 'Active',
+    createdAt: now(),
+  };
 }
 
 function login(username, password) {
