@@ -818,7 +818,7 @@ function render() {
   const inventory = data.inventory || [];
   $('#statProducts').textContent = data.products.length;
   $('#statStock').textContent = inventory.reduce((total, item) => total + Number(item.currentStock || 0), 0);
-  $('#statSales').textContent = money(data.sales.filter((r) => r.status !== 'Cancelled').reduce((total, item) => total + Number(item.total || 0), 0));
+  $('#statSales').textContent = money(data.sales.filter(isTodaySale).reduce((total, item) => total + Number(item.total || 0), 0));
   $('#statLow').textContent = inventory.filter((item) => item.stockStatus === 'Low Stock').length;
 
   fillSelects(data.products);
@@ -1156,6 +1156,28 @@ function rowActions(type, id, item = {}) {
       ${actionsHtml}
     </div>
   </div>`;
+}
+
+function isTodaySale(item) {
+  if (!item || item.status === 'Cancelled') return false;
+  return dateKey(item.date || item.createdAt) === dateKey(new Date());
+}
+
+function dateKey(value) {
+  if (!value) return '';
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return dateParts(value);
+  const text = String(value).trim();
+  const direct = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (direct) return `${direct[1]}-${direct[2]}-${direct[3]}`;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? '' : dateParts(parsed);
+}
+
+function dateParts(date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function money(value) {
