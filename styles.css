@@ -623,7 +623,11 @@ button, input, select, textarea {
   height: 24px;
 }
 
-.mobile-date-control {
+.calendar-picker-wrap {
+  position: relative;
+}
+
+.mobile-date-control-btn {
   width: 36px;
   height: 36px;
   display: flex;
@@ -631,28 +635,225 @@ button, input, select, textarea {
   justify-content: center;
   position: relative;
   color: #ffffff;
-  border-radius: 10px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 8px !important;
+  outline: none !important;
+  box-shadow: none !important;
   cursor: pointer;
+  padding: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.mobile-date-control:hover,
-.mobile-date-control:focus-within {
-  background: rgba(255, 255, 255, 0.1);
+.mobile-date-control-btn:focus,
+.mobile-date-control-btn:focus-visible,
+.mobile-date-control-btn:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
-.mobile-date-control svg {
+.mobile-date-control-btn:hover {
+  opacity: 0.9;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.mobile-date-control-btn svg {
   width: 22px;
   height: 22px;
   pointer-events: none;
 }
 
-.mobile-date-control input {
+.calendar-active-dot {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+}
+
+/* Smooth Custom Calendar Dropdown */
+.smooth-calendar-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 290px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(226, 232, 240, 0.95);
+  padding: 16px;
+  z-index: 1000;
+  animation: calDropIn 0.2s var(--ease-inertial);
+  transform-origin: top right;
+  color: var(--ink);
+}
+
+@keyframes calDropIn {
+  from { opacity: 0; transform: scale(0.94) translateY(-6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.smooth-calendar-dropdown.hidden {
+  display: none;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.cal-month-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ce-blue-dark);
+  letter-spacing: -0.01em;
+}
+
+.cal-nav-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink-light);
   cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.cal-nav-btn:hover {
+  background: var(--surface-alt);
+  border-color: var(--line-strong);
+  color: var(--ce-blue);
+}
+
+.cal-nav-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.cal-weekdays span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 0;
+}
+
+.cal-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.cal-day-cell {
+  height: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.cal-day-cell:hover:not(.empty):not(.selected) {
+  background: var(--ce-blue-soft);
+  color: var(--ce-blue);
+}
+
+.cal-day-cell.other-month {
+  color: var(--line-strong);
+  opacity: 0.45;
+}
+
+.cal-day-cell.today-marker:not(.selected) {
+  font-weight: 800;
+  color: var(--ce-blue);
+  border: 1px solid var(--ce-blue-border);
+}
+
+.cal-day-cell.selected {
+  background: var(--ce-blue) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(29, 78, 216, 0.3);
+}
+
+.cal-day-cell .has-sales-dot {
+  position: absolute;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.cal-day-cell.selected .has-sales-dot {
+  background: #ffffff;
+}
+
+.cal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.cal-footer-btn {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-footer-btn.clear {
+  background: var(--surface-alt);
+  color: var(--ink-light);
+}
+
+.cal-footer-btn.clear:hover {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.cal-footer-btn.today {
+  background: var(--ce-blue-soft);
+  color: var(--ce-blue);
+}
+
+.cal-footer-btn.today:hover {
+  background: var(--ce-blue);
+  color: #ffffff;
 }
 
 .mobile-brand {
@@ -928,6 +1129,167 @@ button, input, select, textarea {
   font-size: 12px;
   color: var(--muted);
   font-weight: 500;
+}
+
+/* ==========================================================================
+   SALES FOR THE LAST 7 DAYS PANEL
+   ========================================================================== */
+.sales-7days-panel {
+  margin-bottom: 0;
+}
+
+.sales-7days-total {
+  text-align: right;
+}
+
+.sales-7days-total .total-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sales-7days-total .total-amount {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ce-blue-dark);
+  letter-spacing: -0.01em;
+}
+
+.sales-7days-body {
+  padding: 16px 20px 12px;
+  position: relative;
+}
+
+.sales-donut-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 6px 0;
+}
+
+.donut-chart-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.donut-svg-container {
+  position: relative;
+  width: 100%;
+  max-width: 310px;
+  height: 210px;
+}
+
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: block;
+}
+
+.donut-track {
+  fill: none;
+  stroke: #f1f5f9;
+  stroke-width: 30;
+}
+
+.donut-slice {
+  fill: none;
+  stroke-width: 30;
+  cursor: pointer;
+  transition: stroke-width 0.2s var(--ease-inertial), filter 0.2s ease, opacity 0.2s ease;
+}
+
+.donut-slice:hover,
+.donut-slice.hovered {
+  stroke-width: 35;
+  filter: drop-shadow(0 0 8px rgba(15, 23, 42, 0.25));
+}
+
+/* Callout Leader Lines and Labels */
+.callout-line {
+  fill: none !important;
+  stroke: #60a5fa;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+
+.callout-amount {
+  font-size: 11.5px;
+  font-weight: 800;
+  fill: var(--ink);
+  font-family: inherit;
+  transition: fill 0.15s ease;
+}
+
+.callout-date {
+  font-size: 9.5px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-family: inherit;
+}
+
+.donut-callout.hovered .callout-line {
+  stroke: var(--ce-blue);
+  stroke-width: 2.25;
+}
+
+.donut-callout.hovered .callout-amount {
+  fill: var(--ce-blue);
+}
+
+.donut-center-info {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+  padding: 4px;
+}
+
+.donut-center-count {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ce-blue-dark);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.donut-center-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+}
+
+@media (max-width: 640px) {
+  .donut-svg-container {
+    max-width: 290px;
+    height: 200px;
+  }
+  .callout-amount {
+    font-size: 10.5px;
+  }
+  .callout-date {
+    font-size: 9px;
+  }
 }
 
 /* Panels and Tables */
@@ -1994,6 +2356,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     display: none !important;
   }
 
+  .view.active {
+    gap: 16px;
+  }
+
   .desktop-table {
     display: none !important;
   }
@@ -2070,6 +2436,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 @media (max-width: 540px) {
   .content {
     padding: 14px 10px;
+  }
+
+  .view.active {
+    gap: 12px;
   }
 
   .mobile-cards {

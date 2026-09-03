@@ -282,6 +282,14 @@ function showAllSkeletons() {
     const el = $(sel);
     if (el) el.innerHTML = renderSkeletonCards(3);
   });
+  const sales7Chart = $('#sales7DaysChart');
+  if (sales7Chart) {
+    sales7Chart.innerHTML = `
+      <div class="sales-donut-wrap" style="pointer-events: none; justify-content: center; padding: 10px 0;">
+        <div class="skeleton-shimmer" style="width: 170px; height: 170px; border-radius: 50%;"></div>
+      </div>
+    `;
+  }
 }
 
 function setupCustomSelects() {
@@ -538,6 +546,360 @@ function setupPasswordToggle() {
   });
 }
 
+let currentCalDate = new Date();
+
+function setupCustomCalendar() {
+  const toggleBtn = $('#calendarToggleBtn');
+  const dropdown = $('#customCalendarDropdown');
+  if (!toggleBtn || !dropdown) return;
+
+  toggleBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !dropdown.classList.contains('hidden');
+    dropdown.classList.toggle('hidden', isOpen);
+    if (!isOpen) {
+      currentCalDate = state.dashboardDate ? new Date(state.dashboardDate + 'T00:00:00') : new Date();
+      if (isNaN(currentCalDate.getTime())) currentCalDate = new Date();
+      renderCustomCalendar();
+    }
+  });
+
+  const prevBtn = $('#calPrevMonth');
+  if (prevBtn) {
+    prevBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentCalDate.setMonth(currentCalDate.getMonth() - 1);
+      renderCustomCalendar();
+    });
+  }
+
+  const nextBtn = $('#calNextMonth');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      currentCalDate.setMonth(currentCalDate.getMonth() + 1);
+      renderCustomCalendar();
+    });
+  }
+
+  const todayBtn = $('#calTodayBtn');
+  if (todayBtn) {
+    todayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setDashboardDate(todayInputValue());
+      dropdown.classList.add('hidden');
+    });
+  }
+
+  const clearBtn = $('#calClearBtn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setDashboardDate('');
+      dropdown.classList.add('hidden');
+    });
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#calendarPickerWrap')) {
+      dropdown.classList.add('hidden');
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      dropdown.classList.add('hidden');
+    }
+  });
+}
+
+function setDashboardDate(dateString) {
+  state.dashboardDate = dateString;
+  localStorage.setItem(DASHBOARD_DATE_KEY, dateString);
+  const dot = $('#calendarActiveDot');
+  if (dot) {
+    dot.classList.toggle('hidden', !dateString || dateString === todayInputValue());
+  }
+  render();
+}
+
+function renderCustomCalendar() {
+  const title = $('#calMonthTitle');
+  const grid = $('#calDaysGrid');
+  if (!grid) return;
+
+  const year = currentCalDate.getFullYear();
+  const month = currentCalDate.getMonth();
+
+  if (title) {
+    title.textContent = currentCalDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  const lastDayCurrentMonth = new Date(year, month + 1, 0).getDate();
+  const lastDayPrevMonth = new Date(year, month, 0).getDate();
+
+  const selectedKey = state.dashboardDate || todayInputValue();
+  const todayKey = todayInputValue();
+
+  const validSales = (state.data.sales || []).filter((item) => item.status !== 'Cancelled');
+  const salesDates = new Set(validSales.map((item) => dateKey(item.date || item.createdAt)));
+
+  let html = '';
+
+  for (let i = firstDayIndex - 1; i >= 0; i--) {
+    const day = lastDayPrevMonth - i;
+    const d = new Date(year, month - 1, day);
+    const key = dateKey(d);
+    const hasSales = salesDates.has(key);
+    html += `<button type="button" class="cal-day-cell other-month" data-cal-date="${key}">
+      ${day}
+      ${hasSales ? '<span class="has-sales-dot"></span>' : ''}
+    </button>`;
+  }
+
+  for (let day = 1; day <= lastDayCurrentMonth; day++) {
+    const d = new Date(year, month, day);
+    const key = dateKey(d);
+    const isSelected = key === selectedKey;
+    const isToday = key === todayKey;
+    const hasSales = salesDates.has(key);
+
+    let classes = ['cal-day-cell'];
+    if (isSelected) classes.push('selected');
+    if (isToday) classes.push('today-marker');
+
+    html += `<button type="button" class="${classes.join(' ')}" data-cal-date="${key}">
+      ${day}
+      ${hasSales ? '<span class="has-sales-dot"></span>' : ''}
+    </button>`;
+  }
+
+  const totalRendered = firstDayIndex + lastDayCurrentMonth;
+  const nextDays = totalRendered <= 35 ? 35 - totalRendered : 42 - totalRendered;
+  for (let day = 1; day <= nextDays; day++) {
+    const d = new Date(year, month + 1, day);
+    const key = dateKey(d);
+    const hasSales = salesDates.has(key);
+    html += `<button type="button" class="cal-day-cell other-month" data-cal-date="${key}">
+      ${day}
+      ${hasSales ? '<span class="has-sales-dot"></span>' : ''}
+    </button>`;
+  }
+
+  grid.innerHTML = html;
+
+  grid.querySelectorAll('.cal-day-cell').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const dateVal = btn.dataset.calDate;
+      if (dateVal) {
+        setDashboardDate(dateVal);
+        $('#customCalendarDropdown')?.classList.add('hidden');
+      }
+    });
+  });
+}
+
+const DONUT_COLORS = [
+  '#ec4899', // 6 days ago (pink)
+  '#8b5cf6', // 5 days ago (purple)
+  '#f59e0b', // 4 days ago (amber)
+  '#10b981', // 3 days ago (emerald)
+  '#06b6d4', // 2 days ago (cyan)
+  '#3b82f6', // 1 day ago (sky blue)
+  '#1d4ed8', // current/selected day (primary deep blue)
+];
+
+function renderSales7Days() {
+  const chart = $('#sales7DaysChart');
+  const totalEl = $('#sales7DaysTotal');
+  if (!chart) return;
+
+  // Fixed strictly to the actual last 7 calendar days ending today - NEVER shifts on click
+  const todayParts = todayInputValue().split('-').map(Number);
+  const baseDate = todayParts.length === 3 ? new Date(todayParts[0], todayParts[1] - 1, todayParts[2]) : new Date();
+
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(baseDate);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+
+  const validSales = (state.data.sales || []).filter((item) => item.status !== 'Cancelled');
+
+  let grandTotal = 0;
+  let totalSalesCount = 0;
+  const dayStats = days.map((d, idx) => {
+    const key = dateKey(d);
+    const daySales = validSales.filter((item) => dateKey(item.date || item.createdAt) === key);
+    const sum = daySales.reduce((acc, item) => acc + Number(item.total || 0), 0);
+    grandTotal += sum;
+    totalSalesCount += daySales.length;
+    return {
+      date: d,
+      key,
+      sum,
+      count: daySales.length,
+      isActive: key === todayInputValue(),
+      color: DONUT_COLORS[idx] || '#2563eb',
+    };
+  });
+
+  if (totalEl) totalEl.textContent = `₱${money(grandTotal)}`;
+
+  // SVG Donut geometry (thicker ring: radius 54, stroke-width 30)
+  const cx = 160;
+  const cy = 110;
+  const radius = 54;
+  const circumference = 2 * Math.PI * radius; // ~339.29
+  const positiveSlices = dayStats.filter((s) => s.sum > 0);
+
+  let accumulatedDash = 0;
+  let accumulatedAngle = -Math.PI / 2; // Start at 12 o'clock
+
+  const sliceElements = [];
+  const calloutElements = [];
+
+  dayStats.forEach((stat, idx) => {
+    if (stat.sum <= 0 || grandTotal <= 0) return;
+
+    const ratio = stat.sum / grandTotal;
+    const sliceLen = ratio * circumference;
+    const gap = positiveSlices.length > 1 ? 2.5 : 0;
+    const dashArray = `${Math.max(0.5, sliceLen - gap).toFixed(2)} ${(circumference - sliceLen + gap).toFixed(2)}`;
+    const dashOffset = (-accumulatedDash).toFixed(2);
+    accumulatedDash += sliceLen;
+
+    // Angle calculations for callout line and label
+    const arcAngle = ratio * 2 * Math.PI;
+    const midAngle = accumulatedAngle + arcAngle / 2;
+    accumulatedAngle += arcAngle;
+
+    // Arc slice (thicker stroke)
+    sliceElements.push(`
+      <circle
+        class="donut-slice ${stat.isActive ? 'active' : ''}"
+        id="donutSlice${idx}"
+        data-index="${idx}"
+        cx="${cx}"
+        cy="${cy}"
+        r="${radius}"
+        stroke="${stat.color}"
+        stroke-dasharray="${dashArray}"
+        stroke-dashoffset="${dashOffset}"
+      />
+    `);
+
+    // Callout Leader Line pointing from outer edge of thick donut to daily sales amount and date
+    const x0 = cx + 70 * Math.cos(midAngle);
+    const y0 = cy + 70 * Math.sin(midAngle);
+    const x1 = cx + 88 * Math.cos(midAngle);
+    const y1 = cy + 88 * Math.sin(midAngle);
+    const isRight = Math.cos(midAngle) >= 0;
+    const x2 = x1 + (isRight ? 18 : -18);
+    const y2 = y1;
+
+    const textX = x2 + (isRight ? 5 : -5);
+    const anchor = isRight ? 'start' : 'end';
+    const amountText = `₱${money(stat.sum)}`;
+    const dateText = stat.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    calloutElements.push(`
+      <g class="donut-callout" id="donutCallout${idx}" data-index="${idx}">
+        <polyline
+          class="callout-line"
+          fill="none"
+          stroke="#60a5fa"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          points="${x0.toFixed(1)},${y0.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}"
+        />
+        <text class="callout-amount" x="${textX.toFixed(1)}" y="${(y2 - 2).toFixed(1)}" text-anchor="${anchor}">
+          ${amountText}
+        </text>
+        <text class="callout-date" x="${textX.toFixed(1)}" y="${(y2 + 10).toFixed(1)}" text-anchor="${anchor}">
+          ${dateText}
+        </text>
+      </g>
+    `);
+  });
+
+  chart.innerHTML = `
+    <div class="sales-donut-wrap">
+      <!-- Centered Thick Donut Chart Box with restored total sales count in center -->
+      <div class="donut-chart-box">
+        <div class="donut-svg-container" id="donutSvgContainer">
+          <svg class="donut-svg" viewBox="0 0 320 220">
+            <!-- Neutral background ring -->
+            <circle class="donut-track" cx="${cx}" cy="${cy}" r="${radius}" />
+            <!-- Donut segments rotated from 12 o'clock -->
+            <g class="donut-segments" transform="rotate(-90 ${cx} ${cy})">
+              ${sliceElements.join('')}
+            </g>
+            <!-- Callout Leader Lines pointing to donut with daily sales amount and date -->
+            <g class="donut-callouts">
+              ${calloutElements.join('')}
+            </g>
+          </svg>
+          <!-- Center Information: # of total sales in center -->
+          <div class="donut-center-info" id="donutCenterInfo">
+            <span class="donut-center-count" id="donutCenterCount">${totalSalesCount}</span>
+            <span class="donut-center-label" id="donutCenterLabel">${totalSalesCount === 1 ? 'SALE' : 'SALES'}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const donutContainer = $('#donutSvgContainer');
+  const cCount = $('#donutCenterCount');
+  const cLabel = $('#donutCenterLabel');
+
+  function highlightDay(index) {
+    const stat = dayStats[index];
+    if (cCount && stat) cCount.textContent = stat.count;
+    if (cLabel && stat) cLabel.textContent = stat.count === 1 ? 'SALE' : 'SALES';
+
+    dayStats.forEach((_, i) => {
+      const slice = $(`#donutSlice${i}`);
+      const callout = $(`#donutCallout${i}`);
+      if (slice) slice.classList.toggle('hovered', i === index);
+      if (callout) callout.classList.toggle('hovered', i === index);
+    });
+  }
+
+  function resetHighlight() {
+    if (cCount) cCount.textContent = totalSalesCount;
+    if (cLabel) cLabel.textContent = totalSalesCount === 1 ? 'SALE' : 'SALES';
+
+    dayStats.forEach((_, i) => {
+      const slice = $(`#donutSlice${i}`);
+      const callout = $(`#donutCallout${i}`);
+      if (slice) slice.classList.remove('hovered');
+      if (callout) callout.classList.remove('hovered');
+    });
+  }
+
+  // Hover and Click events (NO moving of date on click!)
+  chart.querySelectorAll('.donut-slice, .donut-callout').forEach((el) => {
+    const idx = Number(el.dataset.index);
+    el.addEventListener('mouseenter', () => highlightDay(idx));
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      highlightDay(idx);
+    });
+    el.addEventListener('touchstart', (e) => {
+      e.stopPropagation();
+      highlightDay(idx);
+    }, { passive: true });
+  });
+
+  if (donutContainer) donutContainer.addEventListener('mouseleave', resetHighlight);
+}
+
 function bindForms() {
   $('#loginForm').addEventListener('submit', submitLogin);
   setupPasswordToggle();
@@ -546,14 +908,7 @@ function bindForms() {
   $('#salesForm').addEventListener('submit', (event) => saveForm(event, 'saveSale'));
   $('#userForm').addEventListener('submit', (event) => saveForm(event, 'saveUser', { actorRole: state.user.role }));
   $('#inventorySearch').addEventListener('input', render);
-  const dashboardDateInput = $('#dashboardDateInput');
-  if (dashboardDateInput) {
-    dashboardDateInput.addEventListener('change', () => {
-      state.dashboardDate = dashboardDateInput.value || todayInputValue();
-      localStorage.setItem(DASHBOARD_DATE_KEY, state.dashboardDate);
-      render();
-    });
-  }
+  setupCustomCalendar();
   document.addEventListener('click', handleActions);
 
   // Modal Open Triggers
@@ -960,6 +1315,11 @@ function render() {
   const salesMeta = $('#statSalesMeta');
   if (salesMeta) salesMeta.textContent = `${formatDisplayDate(selectedDashboardDateKey())} gross revenue`;
   $('#statLow').textContent = inventory.filter((item) => item.stockStatus === 'Low Stock').length;
+  renderSales7Days();
+  const calDropdown = $('#customCalendarDropdown');
+  if (calDropdown && !calDropdown.classList.contains('hidden')) {
+    renderCustomCalendar();
+  }
 
   fillSelects(data.products);
   fillRows('#overviewRows', inventory.slice(0, 8), (item) => [item.sku, item.name, item.currentStock, badge(item.stockStatus)]);
