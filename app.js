@@ -213,6 +213,10 @@ function closeModal(modalId) {
   if (lockedModalId === modalId) return;
   const modal = $(`#${modalId}`);
   if (modal) modal.classList.add('hidden');
+  if (modalId === 'confirmModal') {
+    pendingDelete = null;
+    pendingSaleSave = null;
+  }
 }
 
 function setModalLocked(modalId, isLocked) {
@@ -558,7 +562,7 @@ function bindForms() {
     }
     if (event.target.classList.contains('modal-backdrop')) {
       if (lockedModalId === event.target.id) return;
-      event.target.classList.add('hidden');
+      closeModal(event.target.id);
       return;
     }
   });
@@ -567,7 +571,7 @@ function bindForms() {
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       $$('.modal-backdrop:not(.hidden)').forEach((modal) => {
-        if (lockedModalId !== modal.id) modal.classList.add('hidden');
+        if (lockedModalId !== modal.id) closeModal(modal.id);
       });
     }
   });
@@ -581,7 +585,7 @@ function bindForms() {
   });
 
   const confirmDelBtn = $('#confirmDeleteBtn');
-  if (confirmDelBtn) confirmDelBtn.addEventListener('click', executeConfirmedDelete);
+  if (confirmDelBtn) confirmDelBtn.addEventListener('click', executeConfirmModal);
 
   document.addEventListener('click', (event) => {
     if (!event.target.closest('.kebab-wrap')) {
@@ -660,10 +664,16 @@ function submitLogin(event) {
 
 function saveForm(event, action, extra = {}) {
   event.preventDefault();
-  const isSaleSave = action === 'saveSale';
-  if (isSaleSave && !window.confirm('Save this sales transaction?')) return;
-
   const form = event.currentTarget;
+  if (action === 'saveSale') {
+    promptSaleSave(form, action, extra);
+    return;
+  }
+  performSaveForm(form, action, extra);
+}
+
+function performSaveForm(form, action, extra = {}) {
+  const isSaleSave = action === 'saveSale';
   const submitBtn = form.querySelector('button[type="submit"]');
   const modal = form.closest('.modal-backdrop');
   const modalId = modal ? modal.id : '';
@@ -728,6 +738,42 @@ function handleActions(event) {
 }
 
 let pendingDelete = null;
+let pendingSaleSave = null;
+
+function configureConfirmModal({ heading, title, desc, buttonText, buttonClass = 'danger' }) {
+  const modalHeading = $('#confirmModalHeading');
+  const itemTitle = $('#confirmItemTitle');
+  const itemDesc = $('#confirmItemDesc');
+  const button = $('#confirmDeleteBtn');
+  const btnText = $('#confirmDeleteBtn .btn-text');
+
+  if (modalHeading) modalHeading.textContent = heading;
+  if (itemTitle) itemTitle.textContent = title;
+  if (itemDesc) itemDesc.innerHTML = desc;
+  if (button) {
+    button.classList.toggle('danger', buttonClass === 'danger');
+    button.classList.toggle('primary', buttonClass === 'primary');
+  }
+  if (btnText) btnText.textContent = buttonText;
+}
+
+function promptSaleSave(form, action, extra) {
+  const payload = Object.assign(Object.fromEntries(new FormData(form)), extra);
+  const prodName = productName(payload.productId);
+  const qty = Number(payload.quantity || 0);
+  const title = payload.id ? 'Update Sale?' : 'Save Sale?';
+
+  pendingDelete = null;
+  pendingSaleSave = { form, action, extra };
+  configureConfirmModal({
+    heading: 'Confirm Sale',
+    title,
+    desc: `Please confirm the sales transaction for <strong>${escapeHtml(prodName)}</strong>${qty ? ` (${qty})` : ''}.<br><span style="font-size: 12.5px; color: var(--muted); margin-top: 6px; display: inline-block;">The sales record will be saved and inventory balances will be updated.</span>`,
+    buttonText: payload.id ? 'Update Sale' : 'Save Sale',
+    buttonClass: 'primary',
+  });
+  openModal('confirmModal');
+}
 
 function promptDelete(type, id) {
   const rows = type === 'product' ? state.data.products : type === 'stock' ? state.data.stockIn : type === 'sale' ? state.data.sales : state.data.users;
@@ -739,6 +785,15 @@ function promptDelete(type, id) {
   const title = $('#confirmItemTitle');
   const desc = $('#confirmItemDesc');
   const btnText = $('#confirmDeleteBtn .btn-text');
+  const heading = $('#confirmModalHeading');
+  const confirmBtn = $('#confirmDeleteBtn');
+
+  pendingSaleSave = null;
+  if (heading) heading.textContent = 'Confirm Action';
+  if (confirmBtn) {
+    confirmBtn.classList.add('danger');
+    confirmBtn.classList.remove('primary');
+  }
 
   if (type === 'stock') {
     const prodName = productName(item.productId);
@@ -758,6 +813,18 @@ function promptDelete(type, id) {
   }
 
   openModal('confirmModal');
+}
+
+function executeConfirmModal() {
+  if (pendingSaleSave) {
+    const { form, action, extra } = pendingSaleSave;
+    pendingSaleSave = null;
+    closeModal('confirmModal');
+    performSaveForm(form, action, extra);
+    return;
+  }
+
+  executeConfirmedDelete();
 }
 
 function executeConfirmedDelete() {
