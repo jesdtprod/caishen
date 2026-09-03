@@ -105,40 +105,42 @@ button, input, select, textarea {
 }
 
 .spinner-card {
-  background: #ffffff;
-  padding: 24px 32px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-modal);
+  background: transparent;
+  padding: 16px;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  min-width: 240px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  animation: modalPop 0.28s var(--ease-inertial);
+  animation: modalPop 0.25s var(--ease-inertial);
 }
 
 .spinner-ring {
-  width: 38px;
-  height: 38px;
-  border: 3.5px solid #e2e8f0;
-  border-top-color: var(--ce-blue);
-  border-right-color: var(--ce-blue);
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(255, 255, 255, 0.22);
+  border-top-color: #60a5fa;
+  border-right-color: #3b82f6;
   border-radius: 50%;
   animation: spin 0.75s linear infinite;
+  filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.45));
 }
 
 .spinner-ring.sm {
   width: 18px;
   height: 18px;
   border-width: 2.5px;
+  filter: none;
 }
 
 .spinner-text {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--ink);
+  color: #ffffff;
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 @keyframes spin {
@@ -1159,13 +1161,24 @@ tbody tr:hover {
 /* ==========================================================================
    RESPONSIVE DESIGN (TABLET & MOBILE)
    ========================================================================== */
+/* Tablet Landscape & Portrait (<= 1024px) */
 @media (max-width: 1024px) {
   .stat-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .content {
+    padding: 24px 20px;
+  }
+
+  .modal-card {
+    max-width: 600px;
   }
 }
 
-@media (max-width: 900px) {
+/* Medium Tablet & Mobile (<= 860px) */
+@media (max-width: 860px) {
   .dashboard {
     grid-template-columns: 1fr;
   }
@@ -1205,7 +1218,9 @@ tbody tr:hover {
   .login-view {
     grid-template-columns: 1fr;
     padding: 32px 20px;
-    gap: 32px;
+    gap: 28px;
+    max-width: 480px;
+    margin: 0 auto;
   }
 
   .brand-panel {
@@ -1222,17 +1237,178 @@ tbody tr:hover {
     margin-right: auto;
   }
 
+  /* Responsive Panel Headers */
+  .panel-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 16px 18px;
+  }
+
+  .panel-head .btn,
+  .panel-head .search-wrap {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Responsive Modals */
+  .modal-backdrop {
+    padding: 12px;
+    align-items: center;
+  }
+
+  .modal-card {
+    max-width: 100%;
+    max-height: calc(100vh - 24px);
+    border-radius: var(--radius-md);
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .modal-header h3 {
+    font-size: 17px;
+  }
+
+  .modal-body {
+    padding: 16px 18px;
+    max-height: calc(85vh - 110px);
+  }
+
   .form-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+
+  /* Prevent auto-zoom on iOS Safari by ensuring font-size is at least 16px */
+  .form-grid input,
+  .form-grid select {
+    height: 44px;
+    font-size: 16px;
+  }
+
+  .modal-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+    height: 44px;
+    font-size: 14px;
+  }
+}
+
+/* Small Mobile (<= 540px) */
+@media (max-width: 540px) {
+  .content {
+    padding: 14px 10px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .stat-card {
+    padding: 14px 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .stat-card strong {
+    font-size: 22px;
+  }
+
+  .stat-header span {
+    font-size: 12px;
+  }
+
+  .stat-icon-wrap {
+    width: 30px;
+    height: 30px;
+  }
+
+  .stat-icon-wrap svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .stat-meta {
+    font-size: 11px;
+  }
+
+  .topbar {
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .user-chip {
+    max-width: calc(100% - 95px);
+    padding: 5px 8px;
+  }
+
+  .user-name-text {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .logout-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 34px;
+  }
+
+  .login-view {
+    padding: 20px 14px;
+  }
+
+  .login-card {
+    padding: 20px 16px;
+  }
+
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .modal-card {
+    max-height: calc(100vh - 16px);
+    border-radius: var(--radius-md);
+  }
+
+  .modal-footer {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  th, td {
+    padding: 10px 12px;
+    font-size: 12.5px;
+  }
+
+  #overview th, #overview td {
+    padding: 10px 12px;
+  }
+}
+
+/* Extra Small Screens (<= 380px) */
+@media (max-width: 380px) {
+  .stat-grid {
     grid-template-columns: 1fr;
   }
 
-  .panel-head.wrap-mobile {
-    flex-direction: column;
-    align-items: flex-start;
+  .mobile-brand strong {
+    font-size: 14px;
   }
 
-  .search-wrap {
-    max-width: 100%;
+  .user-chip {
+    font-size: 11px;
   }
 }
 
