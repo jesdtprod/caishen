@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="assets/ce-logo.png">
   <link rel="apple-touch-icon" href="assets/ce-logo.png">
-  <link rel="stylesheet" href="styles.css?v=20260904-0310">
+  <link rel="stylesheet" href="styles.css?v=20260904-0325">
 </head>
 <body>
   <!-- Global Loading Spinner Overlay -->
@@ -101,7 +101,10 @@
           <img src="assets/ce-logo.png" alt="CE logo">
           <strong>Caishen</strong>
         </div>
-        <div class="user-chip sm" id="mobileUserChip">Admin</div>
+        <label class="mobile-date-control" aria-label="Select dashboard date">
+          <input id="dashboardDateInput" type="date">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        </label>
       </header>
       <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
@@ -184,7 +187,7 @@
                 </div>
               </div>
               <strong id="statSales">0.00</strong>
-              <div class="stat-meta">Today's gross revenue</div>
+              <div class="stat-meta" id="statSalesMeta">Selected date gross revenue</div>
             </article>
             <article class="stat-card alert">
               <div class="stat-header">
@@ -567,7 +570,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260904-0240"></script>
+  <script src="app.js?v=20260904-0325"></script>
 </body>
 </html>
 

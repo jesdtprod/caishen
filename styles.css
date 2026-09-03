@@ -623,6 +623,38 @@ button, input, select, textarea {
   height: 24px;
 }
 
+.mobile-date-control {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  color: #ffffff;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.mobile-date-control:hover,
+.mobile-date-control:focus-within {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-date-control svg {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.mobile-date-control input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
 .mobile-brand {
   display: flex;
   align-items: center;
@@ -1875,13 +1907,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   .mobile-nav {
     display: flex;
     height: 56px;
-  }
-
-  .mobile-nav::after {
-    content: '';
-    width: 36px;
-    height: 36px;
-    display: block;
   }
 
   .sidebar {

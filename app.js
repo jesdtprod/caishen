@@ -1,6 +1,7 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPPqwKKK04voCZAATZFp2oDLYmps51VKlDJY0FKWojm1Y2mnOPp33co1FeT4xjsCXC9g/exec';
 const SESSION_KEY = 'caishen_session_token';
 const VIEW_KEY = 'caishen_active_view';
+const DASHBOARD_DATE_KEY = 'caishen_dashboard_date';
 
 const localStore = {
   users: [{ id: 'USR-DEMO', name: 'Administrator', username: 'admin', role: 'Admin', status: 'Active' }],
@@ -10,7 +11,7 @@ const localStore = {
   inventory: [],
 };
 
-let state = { user: null, data: localStore };
+let state = { user: null, data: localStore, dashboardDate: '' };
 let lockedModalId = '';
 
 const $ = (selector) => document.querySelector(selector);
@@ -545,6 +546,14 @@ function bindForms() {
   $('#salesForm').addEventListener('submit', (event) => saveForm(event, 'saveSale'));
   $('#userForm').addEventListener('submit', (event) => saveForm(event, 'saveUser', { actorRole: state.user.role }));
   $('#inventorySearch').addEventListener('input', render);
+  const dashboardDateInput = $('#dashboardDateInput');
+  if (dashboardDateInput) {
+    dashboardDateInput.addEventListener('change', () => {
+      state.dashboardDate = dashboardDateInput.value || todayInputValue();
+      localStorage.setItem(DASHBOARD_DATE_KEY, state.dashboardDate);
+      render();
+    });
+  }
   document.addEventListener('click', handleActions);
 
   // Modal Open Triggers
@@ -947,7 +956,9 @@ function render() {
   const inventory = data.inventory || [];
   $('#statProducts').textContent = data.products.length;
   $('#statStock').textContent = inventory.reduce((total, item) => total + Number(item.currentStock || 0), 0);
-  $('#statSales').textContent = money(data.sales.filter(isTodaySale).reduce((total, item) => total + Number(item.total || 0), 0));
+  $('#statSales').textContent = money(data.sales.filter(isDashboardDateSale).reduce((total, item) => total + Number(item.total || 0), 0));
+  const salesMeta = $('#statSalesMeta');
+  if (salesMeta) salesMeta.textContent = `${formatDisplayDate(selectedDashboardDateKey())} gross revenue`;
   $('#statLow').textContent = inventory.filter((item) => item.stockStatus === 'Low Stock').length;
 
   fillSelects(data.products);
@@ -1287,9 +1298,17 @@ function rowActions(type, id, item = {}) {
   </div>`;
 }
 
-function isTodaySale(item) {
+function isDashboardDateSale(item) {
   if (!item || item.status === 'Cancelled') return false;
-  return dateKey(item.date || item.createdAt) === dateKey(new Date());
+  return dateKey(item.date || item.createdAt) === selectedDashboardDateKey();
+}
+
+function selectedDashboardDateKey() {
+  return state.dashboardDate || todayInputValue();
+}
+
+function todayInputValue() {
+  return dateParts(new Date());
 }
 
 function dateKey(value) {
@@ -1311,6 +1330,14 @@ function dateParts(date) {
 
 function money(value) {
   return Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatDisplayDate(value) {
+  const key = dateKey(value);
+  if (!key) return 'Selected date';
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function formatDateTime(value, fallback) {
@@ -1387,10 +1414,12 @@ function escapeHtml(value) {
 }
 
 function setToday() {
-  const now = new Date();
-  const today = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const today = todayInputValue();
+  const savedDashboardDate = localStorage.getItem(DASHBOARD_DATE_KEY) || today;
+  state.dashboardDate = savedDashboardDate;
   $$('input[type="date"]').forEach((input) => {
-    if (!input.value) input.value = today;
+    if (input.id === 'dashboardDateInput') input.value = savedDashboardDate;
+    else if (!input.value) input.value = today;
   });
 }
 
