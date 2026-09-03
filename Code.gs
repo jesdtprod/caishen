@@ -108,6 +108,28 @@ function login(username, password) {
   return { user, data: getDashboardData() };
 }
 
+function getSession(token) {
+  setupDatabase();
+  const session = readRows(SHEETS.sessions).find((row) => row.token === token);
+  if (!session) throw new Error('Session expired. Please login again.');
+  if (new Date(session.expiresAt).getTime() < Date.now()) throw new Error('Session expired. Please login again.');
+  const user = readRows(SHEETS.users).find((row) => row.id === session.userId && row.status === 'Active');
+  if (!user) throw new Error('Session user is inactive. Please login again.');
+  delete user.password;
+  return { user, token, data: getDashboardData() };
+}
+
+function createSession(userId) {
+  const token = Utilities.getUuid() + Utilities.getUuid();
+  const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  appendRow(SHEETS.sessions, {
+    token,
+    userId,
+    createdAt: now(),
+    expiresAt: Utilities.formatDate(expires, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
+  });
+  return token;
+}
 function getDashboardData() {
   const products = readRows(SHEETS.products);
   const stockIn = readRows(SHEETS.stockIn);
@@ -340,4 +362,5 @@ function makeId(prefix) {
 function now() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
 }
+
 

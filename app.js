@@ -1,4 +1,5 @@
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyPPqwKKK04voCZAATZFp2oDLYmps51VKlDJY0FKWojm1Y2mnOPp33co1FeT4xjsCXC9g/exec';
+const SESSION_KEY = 'caishen_session_token';
 
 const localStore = {
   users: [{ id: 'USR-DEMO', name: 'Administrator', username: 'admin', role: 'Admin', status: 'Active' }],
@@ -17,11 +18,54 @@ document.addEventListener('DOMContentLoaded', () => {
   setToday();
   bindNavigation();
   bindForms();
+  showAllSkeletons();
 });
 
+let activeRequestsCount = 0;
+
+function showOverlay(message = 'Processing request...') {
+  activeRequestsCount++;
+  const overlay = $('#globalLoadingOverlay');
+  const text = $('#globalLoadingText');
+  if (text && message) text.textContent = message;
+  if (overlay) overlay.classList.remove('hidden');
+}
+
+function hideOverlay() {
+  activeRequestsCount = Math.max(0, activeRequestsCount - 1);
+  if (activeRequestsCount === 0) {
+    const overlay = $('#globalLoadingOverlay');
+    if (overlay) overlay.classList.add('hidden');
+  }
+}
+
+function getActionMessage(action) {
+  const map = {
+    login: 'Signing in to system...',
+    saveProduct: 'Saving product to catalog...',
+    updateProduct: 'Updating product specifications...',
+    deleteProduct: 'Deleting product record...',
+    saveStockIn: 'Saving inbound stock receipt...',
+    saveSale: 'Recording sales transaction...',
+    saveUser: 'Creating user credentials...',
+    updateUser: 'Updating user credentials...',
+    deleteUser: 'Deleting user account...',
+    dashboard: 'Fetching latest dashboard data...',
+  };
+  return map[action] || 'Processing request...';
+}
+
 function apiCall(action, payload = {}) {
+  showOverlay(getActionMessage(action));
+
   if (!APPS_SCRIPT_URL || APPS_SCRIPT_URL.includes('PASTE_YOUR')) {
-    return Promise.resolve(mockCall(action, payload));
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const result = mockCall(action, payload);
+        hideOverlay();
+        resolve(result);
+      }, 350);
+    });
   }
 
   return new Promise((resolve, reject) => {
@@ -38,18 +82,21 @@ function apiCall(action, payload = {}) {
     window[callback] = (response) => {
       completed = true;
       cleanup();
+      hideOverlay();
       response.ok ? resolve(response.data) : reject(new Error(response.error));
     };
 
     script.onerror = () => {
       if (completed) return;
       cleanup();
+      hideOverlay();
       reject(new Error('Google Apps Script was blocked by the browser. Disable ad blocker/shields for this site, then reload.'));
     };
 
     script.onload = () => {
       if (completed) return;
       cleanup();
+      hideOverlay();
       reject(new Error('Google Apps Script loaded but did not return data. Redeploy Apps Script as a new version.'));
     };
 
@@ -62,6 +109,7 @@ function apiCall(action, payload = {}) {
     timeoutId = setTimeout(() => {
       if (completed) return;
       cleanup();
+      hideOverlay();
       reject(new Error('Google Apps Script is taking too long. Try again, then check deployment access is Anyone.'));
     }, 45000);
 
@@ -135,15 +183,84 @@ function sum(rows, productId) {
   return rows.filter((row) => row.productId === productId).reduce((total, row) => total + Number(row.quantity || 0), 0);
 }
 
+function openModal(modalId) {
+  const modal = $(`#${modalId}`);
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeModal(modalId) {
+  const modal = $(`#${modalId}`);
+  if (modal) modal.classList.add('hidden');
+}
+
+function setButtonLoading(button, isLoading) {
+  if (!button) return;
+  button.classList.toggle('is-loading', isLoading);
+  button.disabled = isLoading;
+  const spinner = button.querySelector('.btn-spinner');
+  if (spinner) spinner.classList.toggle('hidden', !isLoading);
+}
+
+function renderSkeletonRows(colCount = 5, rowCount = 4) {
+  return Array.from({ length: rowCount }).map(() =>
+    `<tr class="skeleton-row">${Array.from({ length: colCount }).map(() =>
+      `<td><div class="skeleton-shimmer skeleton-line"></div></td>`
+    ).join('')}</tr>`
+  ).join('');
+}
+
+function showAllSkeletons() {
+  const targets = [
+    { sel: '#overviewRows', cols: 4 },
+    { sel: '#productRows', cols: 7 },
+    { sel: '#stockRows', cols: 5 },
+    { sel: '#salesRows', cols: 5 },
+    { sel: '#inventoryRows', cols: 6 },
+    { sel: '#userRows', cols: 5 },
+  ];
+  targets.forEach(({ sel, cols }) => {
+    const el = $(sel);
+    if (el) el.innerHTML = renderSkeletonRows(cols, 4);
+  });
+}
+
 function bindNavigation() {
   $$('.nav-item[data-view]').forEach((button) => {
-    button.addEventListener('click', () => showView(button.dataset.view));
+    button.addEventListener('click', () => {
+      showView(button.dataset.view);
+      closeMobileSidebar();
+    });
   });
+
+  const mobileBtn = $('#mobileMenuBtn');
+  const sidebar = $('#appSidebar');
+  const backdrop = $('#sidebarBackdrop');
+
+  if (mobileBtn && sidebar) {
+    mobileBtn.addEventListener('click', () => {
+      sidebar.classList.toggle('open');
+      if (backdrop) backdrop.classList.toggle('active', sidebar.classList.contains('open'));
+    });
+  }
+
+  if (backdrop && sidebar) {
+    backdrop.addEventListener('click', closeMobileSidebar);
+  }
+
   $('#logoutButton').addEventListener('click', () => {
     state = { user: null, data: localStore };
     $('#loginView').classList.remove('hidden');
     $('#dashboardView').classList.add('hidden');
+    closeMobileSidebar();
+    showToast('You have been logged out.');
   });
+}
+
+function closeMobileSidebar() {
+  const sidebar = $('#appSidebar');
+  const backdrop = $('#sidebarBackdrop');
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('active');
 }
 
 function bindForms() {
@@ -154,47 +271,126 @@ function bindForms() {
   $('#userForm').addEventListener('submit', (event) => saveForm(event, 'saveUser', { actorRole: state.user.role }));
   $('#inventorySearch').addEventListener('input', render);
   document.addEventListener('click', handleActions);
+
+  // Modal Open Triggers
+  document.addEventListener('click', (event) => {
+    const openBtn = event.target.closest('[data-open-modal]');
+    if (openBtn) {
+      openModal(openBtn.dataset.openModal);
+      return;
+    }
+    const closeBtn = event.target.closest('[data-close-modal]');
+    if (closeBtn) {
+      closeModal(closeBtn.dataset.closeModal);
+      return;
+    }
+    if (event.target.classList.contains('modal-backdrop')) {
+      event.target.classList.add('hidden');
+      return;
+    }
+  });
+
+  // ESC to close modal
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      $$('.modal-backdrop:not(.hidden)').forEach((modal) => modal.classList.add('hidden'));
+    }
+  });
+
   $$('[data-reset-form]').forEach((button) => {
     button.addEventListener('click', () => resetForm(button.dataset.resetForm));
   });
 }
 
+function restoreSession() {
+  const token = localStorage.getItem(SESSION_KEY);
+  if (!token) return;
+  setLoginStatus('Restoring session...');
+  apiCall('session', { token })
+    .then((result) => {
+      saveSession(result.token);
+      showDashboard(result.user, result.data);
+      setLoginStatus('');
+    })
+    .catch(() => {
+      clearSession();
+      setLoginStatus('Please login again.');
+    });
+}
+
+function showDashboard(user, data) {
+  state.user = user;
+  state.data = data;
+  $('#loginView').classList.add('hidden');
+  $('#dashboardView').classList.remove('hidden');
+  $('#roleLabel').textContent = user.role;
+  $('#userChip').textContent = user.name + ' - ' + user.role;
+  $('.admin-only').forEach((item) => item.classList.toggle('hidden', user.role !== 'Admin'));
+  render();
+}
+
+function saveSession(token) {
+  if (token) localStorage.setItem(SESSION_KEY, token);
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 function submitLogin(event) {
   if (event) event.preventDefault();
-  setLoginStatus('Checking login...');
+  setLoginStatus('Verifying credentials...');
+  const loginBtn = $('#loginButton');
+  setButtonLoading(loginBtn, true);
+
   const form = Object.fromEntries(new FormData($('#loginForm')));
   apiCall('login', form)
     .then((result) => {
+      setButtonLoading(loginBtn, false);
+      saveSession(result.token);
       state.user = result.user;
       state.data = result.data;
       $('#loginView').classList.add('hidden');
       $('#dashboardView').classList.remove('hidden');
       $('#roleLabel').textContent = result.user.role;
-      $('#userChip').textContent = `${result.user.name} - ${result.user.role}`;
-      $('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
+      $('#userChip .user-name-text') ? $('#userChip .user-name-text').textContent = `${result.user.name} (${result.user.role})` : $('#userChip').textContent = `${result.user.name} - ${result.user.role}`;
+      const mobileAvatar = $('#mobileUserAvatar') || $('#mobileUserChip');
+      if (mobileAvatar) mobileAvatar.textContent = (result.user.name || 'U').charAt(0).toUpperCase();
+      $$('.admin-only').forEach((item) => item.classList.toggle('hidden', result.user.role !== 'Admin'));
       render();
       setLoginStatus('Login successful.');
-      showToast('Login successful.');
+      showToast(`Welcome back, ${result.user.name}!`);
     })
     .catch((error) => {
+      setButtonLoading(loginBtn, false);
       setLoginStatus(error.message || 'Login failed.');
-      showToast(error.message || 'Login failed.');
+      showToast(error.message || 'Login failed.', 'error');
     });
 }
 
 function saveForm(event, action, extra = {}) {
   event.preventDefault();
   const form = event.currentTarget;
-  const payload = Object.assign(Object.fromEntries(new FormData(form)), extra, { encodedBy: state.user.name });
+  const submitBtn = form.querySelector('button[type="submit"]');
+  setButtonLoading(submitBtn, true);
+
+  const payload = Object.assign(Object.fromEntries(new FormData(form)), extra, { encodedBy: state.user ? state.user.name : 'Admin' });
   const finalAction = payload.id ? action.replace('save', 'update') : action;
   apiCall(finalAction, payload)
     .then((data) => {
+      setButtonLoading(submitBtn, false);
       state.data = data;
-      resetForm(form.getAttribute('id'));
+      const formId = form.getAttribute('id');
+      resetForm(formId);
+      const modal = form.closest('.modal-backdrop');
+      if (modal) modal.classList.add('hidden');
       render();
       showToast('Saved successfully.');
     })
-    .catch((error) => showToast(error.message || 'Unable to save.'));
+    .catch((error) => {
+      setButtonLoading(submitBtn, false);
+      showToast(error.message || 'Unable to save.', 'error');
+    });
 }
 
 function handleActions(event) {
@@ -214,7 +410,7 @@ function handleActions(event) {
       render();
       showToast('Deleted successfully.');
     })
-    .catch((error) => showToast(error.message || 'Unable to delete.'));
+    .catch((error) => showToast(error.message || 'Unable to delete.', 'error'));
 }
 
 function editRecord(type, item) {
@@ -222,25 +418,44 @@ function editRecord(type, item) {
   Object.keys(item).forEach((key) => {
     if (form.elements[key] && key !== 'password') form.elements[key].value = item[key];
   });
-  if (type === 'product') $('#productSubmit').textContent = 'Update Product';
-  if (type === 'user') $('#userSubmit').textContent = 'Update User';
+  if (type === 'product') {
+    const btnText = $('#productSubmit .btn-text');
+    if (btnText) btnText.textContent = 'Update Product';
+    else $('#productSubmit').textContent = 'Update Product';
+    openModal('productModal');
+  }
+  if (type === 'user') {
+    const btnText = $('#userSubmit .btn-text');
+    if (btnText) btnText.textContent = 'Update User';
+    else $('#userSubmit').textContent = 'Update User';
+    openModal('userModal');
+  }
   showView(type === 'product' ? 'products' : 'users');
 }
 
 function resetForm(formId) {
   const form = $(`#${formId}`);
+  if (!form) return;
   form.reset();
   if (form.elements.id) form.elements.id.value = '';
   if (formId === 'productForm' && form.elements.sku) form.elements.sku.value = 'Auto-generated';
-  if (formId === 'productForm') $('#productSubmit').textContent = 'Save Product';
-  if (formId === 'userForm') $('#userSubmit').textContent = 'Create User';
+  const prodBtnText = $('#productSubmit .btn-text');
+  if (prodBtnText) prodBtnText.textContent = 'Save Product';
+  else if ($('#productSubmit')) $('#productSubmit').textContent = 'Save Product';
+  const userBtnText = $('#userSubmit .btn-text');
+  if (userBtnText) userBtnText.textContent = 'Create User';
+  else if ($('#userSubmit')) $('#userSubmit').textContent = 'Create User';
   setToday();
 }
 
 function showView(viewId) {
   $$('.view').forEach((view) => view.classList.toggle('active', view.id === viewId));
   $$('.nav-item[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === viewId));
-  $('#pageTitle').textContent = document.querySelector(`[data-view="${viewId}"]`).textContent;
+  const navBtn = document.querySelector(`[data-view="${viewId}"]`);
+  if (navBtn) {
+    const span = navBtn.querySelector('span');
+    $('#pageTitle').textContent = span ? span.textContent : navBtn.textContent;
+  }
 }
 
 function render() {
@@ -276,9 +491,10 @@ function fillSelects(products) {
 
 function fillRows(selector, rows, mapper) {
   const target = $(selector);
+  if (!target) return;
   target.innerHTML = rows.length
     ? rows.map((row) => `<tr>${mapper(row).map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('')
-    : '<tr><td colspan="8">No records yet.</td></tr>';
+    : '<tr><td colspan="8" style="text-align:center; padding: 24px; color: var(--muted);">No records found.</td></tr>';
 }
 
 function productName(productId) {
@@ -319,22 +535,35 @@ function setLoginStatus(message) {
   if (target) target.textContent = message;
 }
 
-function showToast(message) {
+let toastTimer = null;
+function showToast(message, type = 'success') {
   const toast = $('#toast');
-  toast.textContent = message;
+  if (!toast) return;
+  const messageEl = $('#toastMessage');
+  const iconEl = $('#toastIcon');
+
+  if (messageEl) messageEl.textContent = message;
+  else toast.textContent = message;
+
+  if (type === 'error') {
+    toast.classList.add('error');
+    if (iconEl) {
+      iconEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>';
+    }
+  } else {
+    toast.classList.remove('error');
+    if (iconEl) {
+      iconEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+    }
+  }
+
+  toast.classList.remove('hidden');
+  void toast.offsetWidth;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2400);
+
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3200);
 }
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -2,11 +2,32 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Caishen Enterprises</title>
-  <link rel="stylesheet" href="styles.css?v=20260903-1903">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Caishen Enterprises - ERP & Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260903-2000">
 </head>
 <body>
+  <!-- Global Loading Spinner Overlay -->
+  <div class="global-loading-overlay hidden" id="globalLoadingOverlay" role="status" aria-live="polite">
+    <div class="spinner-card">
+      <div class="spinner-ring"></div>
+      <div class="spinner-text" id="globalLoadingText">Processing request...</div>
+    </div>
+  </div>
+
+  <!-- Centralized Floating Toast Notification -->
+  <div class="toast-container" id="toastContainer">
+    <div class="toast hidden" id="toast" role="alert">
+      <span class="toast-icon" id="toastIcon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </span>
+      <span class="toast-message" id="toastMessage"></span>
+    </div>
+  </div>
+
   <main class="app-shell">
     <section class="login-view" id="loginView">
       <div class="brand-panel">
@@ -25,14 +46,30 @@
           Password
           <input name="password" type="password" value="admin123" required>
         </label>
-        <button class="btn primary" type="button" id="loginButton" onclick="submitLogin(event)">Login</button>
+        <button class="btn primary has-spinner" type="button" id="loginButton" onclick="submitLogin(event)">
+          <span class="btn-text">Login</span>
+          <span class="btn-spinner hidden"></span>
+        </button>
         <p class="form-note">Default admin: admin / admin123</p>
         <p class="form-status" id="loginStatus"></p>
       </form>
     </section>
 
     <section class="dashboard hidden" id="dashboardView">
-      <aside class="sidebar">
+      <!-- Mobile Top Navigation Header -->
+      <header class="mobile-nav">
+        <button class="mobile-nav-toggle" id="mobileMenuBtn" type="button" aria-label="Toggle navigation menu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+        </button>
+        <div class="mobile-brand">
+          <img src="assets/ce-logo.png" alt="CE logo">
+          <strong>Caishen</strong>
+        </div>
+        <div class="user-chip sm" id="mobileUserChip">Admin</div>
+      </header>
+      <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+      <aside class="sidebar" id="appSidebar">
         <div class="sidebar-brand">
           <img src="assets/ce-logo.png" alt="CE logo">
           <div>
@@ -40,13 +77,36 @@
             <span id="roleLabel">Admin</span>
           </div>
         </div>
-        <button class="nav-item active" data-view="overview">Dashboard</button>
-        <button class="nav-item" data-view="products">Product Registration</button>
-        <button class="nav-item" data-view="stock">Stock-In</button>
-        <button class="nav-item" data-view="sales">Sales</button>
-        <button class="nav-item" data-view="inventory">Inventory</button>
-        <button class="nav-item admin-only" data-view="users">Users</button>
-        <button class="nav-item logout" id="logoutButton">Logout</button>
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-view="overview" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-item" data-view="products" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+            <span>Product Registration</span>
+          </button>
+          <button class="nav-item" data-view="stock" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 11l5-5 5 5M12 6v12"></path><rect x="4" y="18" width="16" height="3" rx="1"></rect></svg>
+            <span>Stock-In</span>
+          </button>
+          <button class="nav-item" data-view="sales" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
+            <span>Sales</span>
+          </button>
+          <button class="nav-item" data-view="inventory" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>
+            <span>Inventory</span>
+          </button>
+          <button class="nav-item admin-only" data-view="users" type="button">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            <span>Users</span>
+          </button>
+        </nav>
+        <button class="nav-item logout" id="logoutButton" type="button">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <span>Logout</span>
+        </button>
       </aside>
 
       <section class="content">
@@ -60,13 +120,54 @@
 
         <section class="view active" id="overview">
           <div class="stat-grid">
-            <article class="stat-card"><span>Products</span><strong id="statProducts">0</strong></article>
-            <article class="stat-card green"><span>Total Stock</span><strong id="statStock">0</strong></article>
-            <article class="stat-card"><span>Sales Amount</span><strong id="statSales">0.00</strong></article>
-            <article class="stat-card alert"><span>Low Stock</span><strong id="statLow">0</strong></article>
+            <article class="stat-card">
+              <div class="stat-header">
+                <span>Products</span>
+                <div class="stat-icon-wrap blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path><line x1="16" y1="8" x2="2" y2="22"></line><line x1="17.5" y1="15" x2="9" y2="15"></line></svg>
+                </div>
+              </div>
+              <strong id="statProducts">0</strong>
+              <div class="stat-meta">Active catalog items</div>
+            </article>
+            <article class="stat-card green">
+              <div class="stat-header">
+                <span>Total Stock</span>
+                <div class="stat-icon-wrap green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                </div>
+              </div>
+              <strong id="statStock">0</strong>
+              <div class="stat-meta">Units in warehouse</div>
+            </article>
+            <article class="stat-card">
+              <div class="stat-header">
+                <span>Sales Amount</span>
+                <div class="stat-icon-wrap amber">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                </div>
+              </div>
+              <strong id="statSales">0.00</strong>
+              <div class="stat-meta">Total gross revenue</div>
+            </article>
+            <article class="stat-card alert">
+              <div class="stat-header">
+                <span>Low Stock</span>
+                <div class="stat-icon-wrap red">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+              </div>
+              <strong id="statLow">0</strong>
+              <div class="stat-meta">Items below threshold</div>
+            </article>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>Inventory Snapshot</h3></div>
+            <div class="panel-head">
+              <div>
+                <h3>Inventory Snapshot</h3>
+                <p class="panel-sub">Recent stock levels and health check</p>
+              </div>
+            </div>
             <div class="table-wrap">
               <table>
                 <thead><tr><th>SKU</th><th>Product</th><th>Stock</th><th>Status</th></tr></thead>
@@ -78,100 +179,322 @@
 
         <section class="view" id="products">
           <div class="panel">
-            <div class="panel-head"><h3>Register Product</h3></div>
-            <form class="form-grid" id="productForm" method="post" action="#" onsubmit="return false;">
-              <input name="id" type="hidden">
-              <label>SKU<input name="sku" value="Auto-generated" readonly></label>
-              <label>Product Name<input name="name" required></label>
-              <label>Category<input name="category" required></label>
-              <label>Unit<select name="unit" required>
-                <option value="">Select unit</option>
-                <option>pc/s</option>
-                <option>box/es</option>
-                <option>pack/s</option>
-                <option>bottle/s</option>
-                <option>case/s</option>
-                <option>set/s</option>
-                <option>roll/s</option>
-                <option>pair/s</option>
-                <option>kg</option>
-                <option>gram/s</option>
-                <option>liter/s</option>
-                <option>meter/s</option>
-              </select></label>
-              <label>Selling Price<input name="price" type="number" min="0" step="0.01" required></label>
-              <label>Beginning Stock<input name="beginningStock" type="number" min="0" required></label>
-              <label>Low Stock Level<input name="lowStock" type="number" min="0" required></label>
-              <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
-              <button class="btn primary" type="submit" id="productSubmit">Save Product</button>
-              <button class="btn ghost" type="button" data-reset-form="productForm">Clear</button>
-            </form>
+            <div class="panel-head">
+              <div>
+                <h3>Product Catalog</h3>
+                <p class="panel-sub">Manage registered inventory items, pricing, and stock limits</p>
+              </div>
+              <button class="btn primary" type="button" data-open-modal="productModal">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add Product</span>
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Beginning</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="productRows"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>SKU</th><th>Name</th><th>Category</th><th>Price</th><th>Beginning</th><th>Status</th><th>Action</th></tr></thead><tbody id="productRows"></tbody></table></div></div>
         </section>
 
         <section class="view" id="stock">
           <div class="panel">
-            <div class="panel-head"><h3>Stock-In Entry</h3></div>
-            <form class="form-grid" id="stockForm" method="post" action="#" onsubmit="return false;">
-              <label>Date<input name="date" type="date" required></label>
-              <label>Product<select name="productId" required></select></label>
-              <label>Quantity<input name="quantity" type="number" min="1" required></label>
-              <label>Supplier<input name="supplier"></label>
-              <label>Reference<input name="reference"></label>
-              <button class="btn green" type="submit">Save Stock-In</button>
-            </form>
+            <div class="panel-head">
+              <div>
+                <h3>Stock-In Logs</h3>
+                <p class="panel-sub">Historical logs of inbound warehouse receipts and supplies</p>
+              </div>
+              <button class="btn green" type="button" data-open-modal="stockModal">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add Stock-In</span>
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Encoded By</th></tr></thead>
+                <tbody id="stockRows"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Supplier</th><th>Encoded By</th></tr></thead><tbody id="stockRows"></tbody></table></div></div>
         </section>
 
         <section class="view" id="sales">
           <div class="panel">
-            <div class="panel-head"><h3>Sales Entry</h3></div>
-            <form class="form-grid" id="salesForm" method="post" action="#" onsubmit="return false;">
-              <label>Date<input name="date" type="date" required></label>
-              <label>Product<select name="productId" required></select></label>
-              <label>Quantity<input name="quantity" type="number" min="1" required></label>
-              <label>Price<input name="price" type="number" min="0" step="0.01"></label>
-              <label>Customer<input name="customer"></label>
-              <button class="btn primary" type="submit">Save Sale</button>
-            </form>
+            <div class="panel-head">
+              <div>
+                <h3>Sales Transactions</h3>
+                <p class="panel-sub">Track customer purchases and outgoing product volume</p>
+              </div>
+              <button class="btn primary" type="button" data-open-modal="salesModal">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Record Sale</span>
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Encoded By</th></tr></thead>
+                <tbody id="salesRows"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Total</th><th>Encoded By</th></tr></thead><tbody id="salesRows"></tbody></table></div></div>
         </section>
 
         <section class="view" id="inventory">
           <div class="panel">
-            <div class="panel-head"><h3>Inventory</h3><input class="search" id="inventorySearch" placeholder="Search product"></div>
-            <div class="table-wrap"><table><thead><tr><th>SKU</th><th>Product</th><th>Stock-In</th><th>Sold</th><th>Current</th><th>Status</th></tr></thead><tbody id="inventoryRows"></tbody></table></div>
+            <div class="panel-head wrap-mobile">
+              <div>
+                <h3>Inventory Balances</h3>
+                <p class="panel-sub">Real-time stock reconciliation and depletion rates</p>
+              </div>
+              <div class="search-wrap">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                <input class="search" id="inventorySearch" placeholder="Filter by SKU or Product name...">
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>SKU</th><th>Product</th><th>Stock-In</th><th>Sold</th><th>Current</th><th>Status</th></tr></thead>
+                <tbody id="inventoryRows"></tbody>
+              </table>
+            </div>
           </div>
         </section>
 
         <section class="view" id="users">
           <div class="panel">
-            <div class="panel-head"><h3>Create User</h3></div>
-            <form class="form-grid" id="userForm" method="post" action="#" onsubmit="return false;">
-              <input name="id" type="hidden">
-              <label>Name<input name="name" required></label>
-              <label>Username<input name="username" required></label>
-              <label>Password<input name="password" type="password" placeholder="Leave blank to keep current password"></label>
-              <label>Role<select name="role"><option>Staff</option><option>Admin</option></select></label>
-              <label>Status<select name="status"><option>Active</option><option>Inactive</option></select></label>
-              <button class="btn primary" type="submit" id="userSubmit">Create User</button>
-              <button class="btn ghost" type="button" data-reset-form="userForm">Clear</button>
-            </form>
+            <div class="panel-head">
+              <div>
+                <h3>User Accounts</h3>
+                <p class="panel-sub">Configure system access permissions and credentials</p>
+              </div>
+              <button class="btn primary" type="button" data-open-modal="userModal">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <span>Add User</span>
+              </button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead>
+                <tbody id="userRows"></tbody>
+              </table>
+            </div>
           </div>
-          <div class="panel"><div class="table-wrap"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody id="userRows"></tbody></table></div></div>
         </section>
       </section>
     </section>
   </main>
-  <div class="toast" id="toast"></div>
-  <script src="app.js?v=20260903-1952"></script>
+
+  <!-- MODAL DIALOGS -->
+
+  <!-- Product Modal -->
+  <div class="modal-backdrop hidden" id="productModal" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="productModalTitle">Register Product</h3>
+          <p class="modal-sub">Create or update product specifications in catalog</p>
+        </div>
+        <button class="modal-close-btn" type="button" data-close-modal="productModal" aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form-grid modal-body" id="productForm" method="post" action="#" onsubmit="return false;">
+        <input name="id" type="hidden">
+        <label>
+          <span>SKU</span>
+          <input name="sku" value="Auto-generated" readonly class="input-readonly">
+        </label>
+        <label>
+          <span>Product Name <mark>*</mark></span>
+          <input name="name" placeholder="e.g. Premium White Rice" required>
+        </label>
+        <label>
+          <span>Category <mark>*</mark></span>
+          <input name="category" placeholder="e.g. Grains, Beverages" required>
+        </label>
+        <label>
+          <span>Unit of Measure <mark>*</mark></span>
+          <select name="unit" required>
+            <option value="">Select unit</option>
+            <option>pc/s</option>
+            <option>box/es</option>
+            <option>pack/s</option>
+            <option>bottle/s</option>
+            <option>case/s</option>
+            <option>set/s</option>
+            <option>roll/s</option>
+            <option>pair/s</option>
+            <option>kg</option>
+            <option>gram/s</option>
+            <option>liter/s</option>
+            <option>meter/s</option>
+          </select>
+        </label>
+        <label>
+          <span>Selling Price (₱) <mark>*</mark></span>
+          <input name="price" type="number" min="0" step="0.01" placeholder="0.00" required>
+        </label>
+        <label>
+          <span>Beginning Stock <mark>*</mark></span>
+          <input name="beginningStock" type="number" min="0" placeholder="0" required>
+        </label>
+        <label>
+          <span>Low Stock Warning Level <mark>*</mark></span>
+          <input name="lowStock" type="number" min="0" placeholder="5" required>
+        </label>
+        <label>
+          <span>Status</span>
+          <select name="status">
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </label>
+        <div class="modal-footer full-width">
+          <button class="btn ghost" type="button" data-reset-form="productForm" data-close-modal="productModal">Cancel</button>
+          <button class="btn primary has-spinner" type="submit" id="productSubmit">
+            <span class="btn-text">Save Product</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stock-In Modal -->
+  <div class="modal-backdrop hidden" id="stockModal" role="dialog" aria-modal="true" aria-labelledby="stockModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="stockModalTitle">Stock-In Entry</h3>
+          <p class="modal-sub">Receive new stock inventory into warehouse</p>
+        </div>
+        <button class="modal-close-btn" type="button" data-close-modal="stockModal" aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form-grid modal-body" id="stockForm" method="post" action="#" onsubmit="return false;">
+        <label>
+          <span>Receipt Date <mark>*</mark></span>
+          <input name="date" type="date" required>
+        </label>
+        <label>
+          <span>Product <mark>*</mark></span>
+          <select name="productId" required></select>
+        </label>
+        <label>
+          <span>Quantity Received <mark>*</mark></span>
+          <input name="quantity" type="number" min="1" placeholder="1" required>
+        </label>
+        <label>
+          <span>Supplier Name</span>
+          <input name="supplier" placeholder="e.g. Acme Wholesale">
+        </label>
+        <label>
+          <span>Reference / PO #</span>
+          <input name="reference" placeholder="e.g. PO-84920">
+        </label>
+        <div class="modal-footer full-width">
+          <button class="btn ghost" type="button" data-reset-form="stockForm" data-close-modal="stockModal">Cancel</button>
+          <button class="btn green has-spinner" type="submit" id="stockSubmit">
+            <span class="btn-text">Save Stock-In</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sales Modal -->
+  <div class="modal-backdrop hidden" id="salesModal" role="dialog" aria-modal="true" aria-labelledby="salesModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="salesModalTitle">Sales Entry</h3>
+          <p class="modal-sub">Record outgoing sales order and customer billing</p>
+        </div>
+        <button class="modal-close-btn" type="button" data-close-modal="salesModal" aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form-grid modal-body" id="salesForm" method="post" action="#" onsubmit="return false;">
+        <label>
+          <span>Transaction Date <mark>*</mark></span>
+          <input name="date" type="date" required>
+        </label>
+        <label>
+          <span>Product <mark>*</mark></span>
+          <select name="productId" required></select>
+        </label>
+        <label>
+          <span>Quantity Sold <mark>*</mark></span>
+          <input name="quantity" type="number" min="1" placeholder="1" required>
+        </label>
+        <label>
+          <span>Unit Price (optional override)</span>
+          <input name="price" type="number" min="0" step="0.01" placeholder="Leave empty for catalog price">
+        </label>
+        <label>
+          <span>Customer Name</span>
+          <input name="customer" placeholder="e.g. Walk-in Customer">
+        </label>
+        <div class="modal-footer full-width">
+          <button class="btn ghost" type="button" data-reset-form="salesForm" data-close-modal="salesModal">Cancel</button>
+          <button class="btn primary has-spinner" type="submit" id="salesSubmit">
+            <span class="btn-text">Save Sale</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- User Modal -->
+  <div class="modal-backdrop hidden" id="userModal" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 id="userModalTitle">Create User</h3>
+          <p class="modal-sub">Grant staff or admin access to the application</p>
+        </div>
+        <button class="modal-close-btn" type="button" data-close-modal="userModal" aria-label="Close dialog">&times;</button>
+      </div>
+      <form class="form-grid modal-body" id="userForm" method="post" action="#" onsubmit="return false;">
+        <input name="id" type="hidden">
+        <label>
+          <span>Full Name <mark>*</mark></span>
+          <input name="name" placeholder="e.g. Juan dela Cruz" required>
+        </label>
+        <label>
+          <span>Username <mark>*</mark></span>
+          <input name="username" placeholder="e.g. jdelacruz" required>
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" placeholder="Leave blank to keep existing password">
+        </label>
+        <label>
+          <span>Role</span>
+          <select name="role">
+            <option>Staff</option>
+            <option>Admin</option>
+          </select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select name="status">
+            <option>Active</option>
+            <option>Inactive</option>
+          </select>
+        </label>
+        <div class="modal-footer full-width">
+          <button class="btn ghost" type="button" data-reset-form="userForm" data-close-modal="userModal">Cancel</button>
+          <button class="btn primary has-spinner" type="submit" id="userSubmit">
+            <span class="btn-text">Create User</span>
+            <span class="btn-spinner hidden"></span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260903-2032"></script>
 </body>
 </html>
-
-
 
 
 
