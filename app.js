@@ -304,7 +304,7 @@ function escapeHtml(value) {
 
 function setToday() {
   const today = new Date().toISOString().slice(0, 10);
-  $('input[type="date"]').forEach((input) => {
+  $$('input[type="date"]').forEach((input) => {
     if (!input.value) input.value = today;
   });
 }
@@ -315,6 +315,9 @@ function showToast(message) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
+
+
+
 
 
 
