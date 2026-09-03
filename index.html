@@ -80,10 +80,24 @@
             <div class="panel-head"><h3>Register Product</h3></div>
             <form class="form-grid" id="productForm">
               <input name="id" type="hidden">
-              <label>SKU<input name="sku" required></label>
+              <label>SKU<input name="sku" value="Auto-generated" readonly></label>
               <label>Product Name<input name="name" required></label>
               <label>Category<input name="category" required></label>
-              <label>Unit<input name="unit" placeholder="pcs, box, kilo" required></label>
+              <label>Unit<select name="unit" required>
+                <option value="">Select unit</option>
+                <option>pc/s</option>
+                <option>box/es</option>
+                <option>pack/s</option>
+                <option>bottle/s</option>
+                <option>case/s</option>
+                <option>set/s</option>
+                <option>roll/s</option>
+                <option>pair/s</option>
+                <option>kg</option>
+                <option>gram/s</option>
+                <option>liter/s</option>
+                <option>meter/s</option>
+              </select></label>
               <label>Selling Price<input name="price" type="number" min="0" step="0.01" required></label>
               <label>Beginning Stock<input name="beginningStock" type="number" min="0" required></label>
               <label>Low Stock Level<input name="lowStock" type="number" min="0" required></label>
@@ -152,7 +166,7 @@
     </section>
   </main>
   <div class="toast" id="toast"></div>
-  <script src="app.js?v=20260903-1903"></script>
+  <script src="app.js?v=20260903-1915"></script>
 </body>
 </html>
 

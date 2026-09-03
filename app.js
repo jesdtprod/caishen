@@ -74,7 +74,9 @@ function mockCall(action, payload) {
   if (action === 'login') {
     return { user: localStore.users[0], data: localStore };
   }
-  if (action === 'saveProduct') localStore.products.push(withId('PRD', payload));
+  if (action === 'saveProduct') {
+    localStore.products.push(withId('PRD', Object.assign({}, payload, { sku: nextLocalSku() })));
+  }
   if (action === 'updateProduct') updateLocal(localStore.products, payload);
   if (action === 'deleteProduct') removeLocal(localStore.products, payload.id);
   if (action === 'saveStockIn') localStore.stockIn.push(withId('STK', payload));
@@ -95,6 +97,14 @@ function mockCall(action, payload) {
 
 function withId(prefix, item) {
   return Object.assign({ id: `${prefix}-${Date.now()}` }, item);
+}
+
+function nextLocalSku() {
+  const maxNumber = localStore.products.reduce((max, product) => {
+    const match = String(product.sku || '').match(/^CSH-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return 'CSH-' + String(maxNumber + 1).padStart(5, '0');
 }
 
 function updateLocal(rows, item) {
@@ -175,7 +185,7 @@ function saveForm(event, action, extra = {}) {
   apiCall(finalAction, payload)
     .then((data) => {
       state.data = data;
-      resetForm(form.id);
+      resetForm(form.getAttribute('id'));
       render();
       showToast('Saved successfully.');
     })
@@ -216,6 +226,7 @@ function resetForm(formId) {
   const form = $(`#${formId}`);
   form.reset();
   if (form.elements.id) form.elements.id.value = '';
+  if (formId === 'productForm' && form.elements.sku) form.elements.sku.value = 'Auto-generated';
   if (formId === 'productForm') $('#productSubmit').textContent = 'Save Product';
   if (formId === 'userForm') $('#userSubmit').textContent = 'Create User';
   setToday();
@@ -293,7 +304,7 @@ function escapeHtml(value) {
 
 function setToday() {
   const today = new Date().toISOString().slice(0, 10);
-  $$('input[type="date"]').forEach((input) => {
+  $('input[type="date"]').forEach((input) => {
     if (!input.value) input.value = today;
   });
 }
@@ -304,4 +315,8 @@ function showToast(message) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
+
+
+
+
 

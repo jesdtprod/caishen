@@ -176,10 +176,11 @@ function deleteUser(payload) {
 }
 
 function saveProduct(payload) {
-  ensureUnique(SHEETS.products, 'sku', payload.sku);
+  const sku = nextProductSku();
+  ensureUnique(SHEETS.products, 'sku', sku);
   const row = {
     id: makeId('PRD'),
-    sku: payload.sku,
+    sku,
     name: payload.name,
     category: payload.category,
     unit: payload.unit,
@@ -194,9 +195,11 @@ function saveProduct(payload) {
 }
 
 function updateProduct(payload) {
-  ensureUnique(SHEETS.products, 'sku', payload.sku, payload.id);
+  const existing = findById(SHEETS.products, payload.id);
+  const sku = payload.sku || existing.sku;
+  ensureUnique(SHEETS.products, 'sku', sku, payload.id);
   updateRow(SHEETS.products, payload.id, {
-    sku: payload.sku,
+    sku,
     name: payload.name,
     category: payload.category,
     unit: payload.unit,
@@ -206,6 +209,14 @@ function updateProduct(payload) {
     status: payload.status || 'Active',
   });
   return getDashboardData();
+}
+
+function nextProductSku() {
+  const maxNumber = readRows(SHEETS.products).reduce((max, product) => {
+    const match = String(product.sku || '').match(/^CSH-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return 'CSH-' + String(maxNumber + 1).padStart(5, '0');
 }
 
 function deleteProduct(payload) {
