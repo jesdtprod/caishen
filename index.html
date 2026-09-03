@@ -301,17 +301,20 @@
       </div>
       <form class="form-grid modal-body" id="productForm" method="post" action="#" onsubmit="return false;">
         <input name="id" type="hidden">
-        <label>
-          <span>SKU</span>
-          <input name="sku" value="Auto-generated" readonly class="input-readonly">
-        </label>
-        <label>
+        <input name="sku" type="hidden" value="Auto-generated">
+        <label class="full-width">
           <span>Product Name <mark>*</mark></span>
           <input name="name" placeholder="e.g. Premium White Rice" required>
         </label>
         <label>
           <span>Category <mark>*</mark></span>
-          <input name="category" placeholder="e.g. Grains, Beverages" required>
+          <select name="category" required>
+            <option value="">Select category</option>
+            <option>Supplies</option>
+            <option>Rice</option>
+            <option>Water</option>
+            <option>Catering</option>
+          </select>
         </label>
         <label>
           <span>Unit of Measure <mark>*</mark></span>
@@ -320,6 +323,7 @@
             <option>pc/s</option>
             <option>box/es</option>
             <option>pack/s</option>
+            <option>sack/s</option>
             <option>bottle/s</option>
             <option>case/s</option>
             <option>set/s</option>

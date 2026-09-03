@@ -20,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindNavigation();
   bindForms();
   showAllSkeletons();
+  setupCustomSelects();
   restoreSession();
 });
 
@@ -226,6 +227,166 @@ function showAllSkeletons() {
   });
 }
 
+function setupCustomSelects() {
+  $$('select').forEach((select) => initCustomSelect(select));
+
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.custom-select-wrap')) {
+      $$('.custom-select-wrap.open').forEach((el) => el.classList.remove('open'));
+    }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      $$('.custom-select-wrap.open').forEach((el) => el.classList.remove('open'));
+    }
+  });
+}
+
+function initCustomSelect(select) {
+  if (!select || select.dataset.customized === 'true') return;
+  select.dataset.customized = 'true';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'custom-select-wrap';
+  select.parentNode.insertBefore(wrap, select);
+  wrap.appendChild(select);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'custom-select-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+
+  const label = document.createElement('span');
+  label.className = 'custom-select-label';
+
+  const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  arrow.setAttribute('class', 'custom-select-arrow');
+  arrow.setAttribute('viewBox', '0 0 24 24');
+  arrow.setAttribute('fill', 'none');
+  arrow.setAttribute('stroke', 'currentColor');
+  arrow.setAttribute('stroke-width', '2');
+  arrow.setAttribute('stroke-linecap', 'round');
+  arrow.setAttribute('stroke-linejoin', 'round');
+  const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  polyline.setAttribute('points', '6 9 12 15 18 9');
+  arrow.appendChild(polyline);
+
+  trigger.appendChild(label);
+  trigger.appendChild(arrow);
+  wrap.appendChild(trigger);
+
+  const menu = document.createElement('div');
+  menu.className = 'custom-select-menu';
+  menu.setAttribute('role', 'listbox');
+  wrap.appendChild(menu);
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = wrap.classList.contains('open');
+    $$('.custom-select-wrap.open').forEach((el) => {
+      if (el !== wrap) el.classList.remove('open');
+    });
+    wrap.classList.toggle('open', !isOpen);
+    trigger.setAttribute('aria-expanded', String(!isOpen));
+  });
+
+  buildCustomOptions(select, menu, label);
+
+  select.addEventListener('change', () => {
+    syncCustomSelectLabel(select, label, menu);
+  });
+
+  const form = select.closest('form');
+  if (form) {
+    form.addEventListener('reset', () => {
+      setTimeout(() => syncCustomSelectLabel(select, label, menu), 0);
+    });
+  }
+}
+
+function buildCustomOptions(select, menu, label) {
+  if (!menu) return;
+  menu.innerHTML = '';
+  const options = Array.from(select.options);
+
+  options.forEach((opt) => {
+    const item = document.createElement('div');
+    item.className = `custom-select-option ${opt.value === select.value ? 'selected' : ''}`;
+    item.dataset.value = opt.value;
+    item.setAttribute('role', 'option');
+
+    const spanText = document.createElement('span');
+    spanText.textContent = opt.textContent;
+    item.appendChild(spanText);
+
+    const check = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    check.setAttribute('class', 'option-check');
+    check.setAttribute('viewBox', '0 0 24 24');
+    check.setAttribute('fill', 'none');
+    check.setAttribute('stroke', 'currentColor');
+    check.setAttribute('stroke-width', '2.5');
+    const chkPoly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    chkPoly.setAttribute('points', '20 6 9 17 4 12');
+    check.appendChild(chkPoly);
+    item.appendChild(check);
+
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      select.value = opt.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      syncCustomSelectLabel(select, label, menu);
+      const wrap = select.closest('.custom-select-wrap');
+      if (wrap) wrap.classList.remove('open');
+    });
+
+    menu.appendChild(item);
+  });
+
+  syncCustomSelectLabel(select, label, menu);
+}
+
+function syncCustomSelectLabel(select, label, menu) {
+  if (!select) return;
+  const wrap = select.closest('.custom-select-wrap');
+  if (!label && wrap) label = wrap.querySelector('.custom-select-label');
+  if (!menu && wrap) menu = wrap.querySelector('.custom-select-menu');
+
+  const selected = select.options[select.selectedIndex];
+  if (label) {
+    label.textContent = selected ? selected.textContent : 'Select...';
+    label.classList.toggle('is-placeholder', !select.value);
+  }
+
+  if (menu) {
+    menu.querySelectorAll('.custom-select-option').forEach((opt) => {
+      const isMatch = opt.dataset.value === select.value;
+      opt.classList.toggle('selected', isMatch);
+    });
+  }
+}
+
+function syncCustomSelect(select) {
+  if (!select) return;
+  const wrap = select.closest('.custom-select-wrap');
+  if (!wrap) {
+    initCustomSelect(select);
+    return;
+  }
+  const menu = wrap.querySelector('.custom-select-menu');
+  const label = wrap.querySelector('.custom-select-label');
+  buildCustomOptions(select, menu, label);
+}
+
+function syncAllCustomSelectsInForm(form) {
+  if (!form) return;
+  form.querySelectorAll('select').forEach((sel) => {
+    syncCustomSelectLabel(sel);
+  });
+}
+
 function bindNavigation() {
   $$('.nav-item[data-view]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -423,6 +584,7 @@ function editRecord(type, item) {
   Object.keys(item).forEach((key) => {
     if (form.elements[key] && key !== 'password') form.elements[key].value = item[key];
   });
+  syncAllCustomSelectsInForm(form);
   if (type === 'product') {
     const btnText = $('#productSubmit .btn-text');
     if (btnText) btnText.textContent = 'Update Product';
@@ -451,6 +613,7 @@ function resetForm(formId) {
   if (userBtnText) userBtnText.textContent = 'Create User';
   else if ($('#userSubmit')) $('#userSubmit').textContent = 'Create User';
   setToday();
+  syncAllCustomSelectsInForm(form);
 }
 
 function getSavedView() {
@@ -499,6 +662,7 @@ function fillSelects(products) {
       `<option value="${item.id}">${escapeHtml(item.sku)} - ${escapeHtml(item.name)}</option>`
     ).join('');
     select.value = current;
+    syncCustomSelect(select);
   });
 }
 
