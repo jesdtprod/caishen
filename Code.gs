@@ -107,8 +107,9 @@ function login(username, password) {
     item.status === 'Active'
   );
   if (!user) throw new Error('Invalid username, password, or inactive account.');
+  const token = createSession(user.id);
   delete user.password;
-  return { user, data: getDashboardData() };
+  return { user, token, sessionCreated: true, data: getDashboardData() };
 }
 
 function getSession(token) {
@@ -365,6 +366,7 @@ function makeId(prefix) {
 function now() {
   return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
 }
+
 
 
 
