@@ -161,7 +161,7 @@ function bindForms() {
 
 function submitLogin(event) {
   event.preventDefault();
-  const form = Object.fromEntries(new FormData(event.currentTarget));
+  const form = Object.fromEntries(new FormData($("#loginForm")));
   apiCall('login', form)
     .then((result) => {
       state.user = result.user;
@@ -315,6 +315,7 @@ function showToast(message) {
   toast.classList.add('show');
   setTimeout(() => toast.classList.remove('show'), 2400);
 }
+
 
 
 
