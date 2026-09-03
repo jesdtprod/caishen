@@ -308,6 +308,9 @@ function bindForms() {
 function restoreSession() {
   const token = localStorage.getItem(SESSION_KEY);
   if (!token) return;
+  $('#loginView').classList.add('hidden');
+  $('#dashboardView').classList.remove('hidden');
+  showView(getSavedView());
   setLoginStatus('Restoring session...');
   apiCall('session', { token })
     .then((result) => {
@@ -317,6 +320,8 @@ function restoreSession() {
     })
     .catch(() => {
       clearSession();
+      $('#dashboardView').classList.add('hidden');
+      $('#loginView').classList.remove('hidden');
       setLoginStatus('Please login again.');
     });
 }
